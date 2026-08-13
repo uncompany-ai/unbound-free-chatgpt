@@ -1,0 +1,94 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  slate-widget.html — pinned layout contract for `render.slate(slate_view)`.
+
+  Generalized from an approved reference design. Rendered as ONE visualize widget
+  fragment per slate: one top-level
+  <div>, first child h2.sr-only (widget-fragment constraints, resources/tool-bindings.md
+  "Visualize protocol"). Inline styles only; Cowork CSS custom properties with hex
+  fallbacks; Tabler icons are the only external asset. Fallback surface (plain annotated
+  slate lines, build-slate Step 4) carries the same rows/signals — ADR-1 field parity.
+
+  FIELD ORDER (fixed, per card): icon circle · name · muted subtitle line ·
+  signal pill(s) · full-width "Work this account" button.
+
+  SUBTITLE ({{SUBTITLE}}) — derived by build-slate Step 4's label-derivation rules:
+    "<Humanized stage> · <Humanized topic>", or whichever single part is known, or the
+    humanized namespace singular (Account / Project) when neither is — never empty, so
+    card height stays uniform across the grid.
+
+  ICON CIRCLE — keyed by the signal mix of the pending events the row's group carries:
+    call-only  → ti-video on purple  (var(--c-purple-50,#EEEDFE) bg / var(--c-purple-800,#3C3489) icon)
+    email-only → ti-mail  on teal    (var(--c-teal-50,#E1F5EE)  bg / var(--c-teal-800,#085041)  icon)
+    both       → ti-users on coral   (var(--c-coral-50,#FAECE7) bg / var(--c-coral-800,#712B13) icon)
+
+  PILLS — one per signal present on the row, plus the state pill below when the row has one;
+  when both signals are present show BOTH signal pills, call pill first, and the resume pill
+  always renders last:
+    call pill  (purple): "Call · {{CALL_RECENCY}}" — append " · no recording"
+                         VERBATIM when the row's transcript flag is missing (Pattern 2's
+                         honest surfacing; it renders INSIDE the call pill, never outside).
+    email pill (teal):   "{{EMAIL_COUNT}} unanswered email{{S}} · {{EMAIL_RECENCY}}"
+                         ({{S}} = "s" when count > 1, "" when 1; {{CALL_RECENCY}} /
+                         {{EMAIL_RECENCY}} are the recency labels build-slate Step 4's
+                         label-derivation rules produce from the persisted YYYY-MM-DD —
+                         today / yesterday / "<d> days ago" / "Mon DD"; an absent date
+                         omits the recency clause entirely — no dangling separator).
+    resume pill (amber): "Resume · {{RESUME_LABEL}}" — STATE, not signal. That is why it takes the
+                         template set's amber state-pill colour rather than a signal colour, and
+                         why it renders LAST, after every signal pill. Include ONLY when the row
+                         has an open work record. {{RESUME_LABEL}} is one of exactly three:
+                         "plan ready" (phase planned) · "triaged" (triaged) ·
+                         "awaiting close-out" (executed) — there is no fallback label for any
+                         other phase, and the pill is simply absent when there is no record.
+
+  sendPrompt GRAMMAR (selection — see resources/tool-bindings.md "sendPrompt grammar"):
+    The button sends `Work {{NAME_FLATTENED}}` — the button IS the selection utterance;
+    typing the same text by hand is equivalent. Selection stays rep-owned; the agent
+    never auto-selects. A click writes nothing (ADR-9).
+
+  PUNCTUATION-FLATTENING RULE ({{NAME_FLATTENED}}):
+    Inside the sendPrompt('…') string, flatten `&` and punctuation to words so the
+    handler stays valid JS and the utterance is typable — e.g. "Halvorsen &amp; Pike"
+    → sendPrompt('Work Halvorsen and Pike'); strip/flatten `'` and `"` likewise.
+    The visible card {{NAME}} keeps the real name (HTML-escaped: &amp;, &mdash;, …).
+
+  EMPTY SLATE → no widget at all; the existing "empty slate" chat line stands.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the surface + row count for screen readers, e.g.
+     "Unbound run slate: five accounts with new call or email activity since the
+      last run, each shown as a card you can select" -->
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
+
+<!--
+  SLATE CARD TEMPLATE — repeat one block per slate row (one derived group of pending events).
+  {{ICON}} ∈ video|mail|users, {{ICON_COLOR}} ∈ purple|teal|coral per the icon key above;
+  hex fallbacks pair with the color: purple #EEEDFE/#3C3489 · teal #E1F5EE/#085041 ·
+  coral #FAECE7/#712B13.
+-->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1rem 1.25rem;">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+    <div style="width:36px; height:36px; border-radius:50%; background:var(--c-{{ICON_COLOR}}-50,{{ICON_BG_HEX}}); display:flex; align-items:center; justify-content:center;"><i class="ti ti-{{ICON}}" style="font-size:18px; color:var(--c-{{ICON_COLOR}}-800,{{ICON_FG_HEX}});" aria-hidden="true"></i></div>
+    <div>
+      <p style="font-weight:500; font-size:15px; margin:0;">{{NAME}}</p>
+      <p style="font-size:12px; color:var(--text-muted); margin:0;">{{SUBTITLE}}</p>
+    </div>
+  </div>
+  <div style="display:flex; flex-wrap:wrap; gap:6px;">
+    <!-- CALL PILL — include only when the row carries a call signal.
+         Append " · no recording" verbatim inside the label when applicable. -->
+    <span style="background:var(--c-purple-50,#EEEDFE); color:var(--c-purple-800,#3C3489); font-size:12px; font-weight:500; padding:3px 10px; border-radius:999px;">Call &middot; {{CALL_RECENCY}}{{NO_RECORDING_SUFFIX}}</span>
+    <!-- EMAIL PILL — include only when the row carries an email signal. -->
+    <span style="background:var(--c-teal-50,#E1F5EE); color:var(--c-teal-800,#085041); font-size:12px; font-weight:500; padding:3px 10px; border-radius:999px;">{{EMAIL_COUNT}} unanswered email{{S}} &middot; {{EMAIL_RECENCY}}</span>
+    <!-- RESUME PILL — include only when the row has an open work record; always rendered last. -->
+    <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:12px; font-weight:500; padding:3px 10px; border-radius:999px;">Resume &middot; {{RESUME_LABEL}}</span>
+  </div>
+  <button onclick="sendPrompt('Work {{NAME_FLATTENED}}')" style="margin-top:12px; width:100%;">Work this account</button>
+</div>
+<!-- / END SLATE CARD TEMPLATE -->
+
+</div>
+</div>

@@ -1,0 +1,6 @@
+interface:
+  display_name: Setup Unbound
+  short_description: Onboarding orchestrator for Unbound.
+  brand_color: '#2F6F4E'
+policy:
+  allow_implicit_invocation: true

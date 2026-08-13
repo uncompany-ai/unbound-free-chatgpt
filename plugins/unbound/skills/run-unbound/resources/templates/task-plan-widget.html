@@ -1,0 +1,97 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  task-plan-widget.html — pinned layout contract for `render.tasks(task_view)`.
+
+  Generalized from an approved reference design. Supersedes the retired
+  checkbox-based artifact-checklist template.
+  Rendered as ONE visualize widget fragment per plan/roundup: one top-level <div>,
+  first child h2.sr-only (widget-fragment constraints, resources/tool-bindings.md
+  "Visualize protocol"). Inline styles only; Cowork CSS custom properties with hex
+  fallbacks; no external assets.
+
+  A vertical card stack in PRIORITY ORDER (P1 first), one card per retained task.
+
+  FIELD ORDER (fixed, per card): P# badge · type-tag pill · title · one muted
+  evidence/detail line.
+
+  CONSUMERS (the synthesis-time plan render retired with run-unbound Step 3.5):
+    - the `collect-tasks` cross-item roundup (variant below),
+    - work-account's re-renders after SET-STATUS (Step 14) and APPLY-EDIT (Step 15).
+
+  NO BUTTONS AND NO CHECKBOXES — this is the presentation step only. Verdicts happen
+  at the Step 3.5 batch triage (batch-triage-widget.html), whose cards carry their own
+  controls; task status changes are explicit chat asks ("mark t2 done") applied via
+  SET-STATUS (work-account Step 14). The former checkbox-capture-on-return binding is
+  retired with the checkbox (ADR-9: this widget conveys nothing back).
+
+  P# BADGE (rounded-4px chip; visible text label, never color alone):
+    P1  → amber  (var(--c-amber-50,#FAEEDA)  bg / var(--c-amber-800,#633806)  text)
+    P2  → purple (var(--c-purple-50,#EEEDFE) bg / var(--c-purple-800,#3C3489) text)
+    P3+ → gray   (var(--c-gray-50,#F1EFE8)   bg / var(--c-gray-800,#444441)   text)
+
+  TYPE-TAG PILL (display label = the persisted type with underscores → spaces):
+    followup_email    → blue (var(--c-blue-50,#E6F1FB) bg / var(--c-blue-800,#0C447C) text)
+    define-only types → gray (var(--c-gray-50,#F1EFE8) bg / var(--c-gray-800,#444441) text)
+                        with the literal " · rep-owned" suffix appended to the label.
+
+  ADR-1 FIELD PARITY — fields present here match the Markdown-checklist fallback
+  fields exactly: title · P# (priority) · type · evidence (+ id/status on the roundup
+  variant below). No additional field is introduced without a Markdown-fallback
+  counterpart, and none is dropped.
+
+  EVIDENCE STYLE CONTRACT (ADR-1; carried over from the retired checklist template):
+    cited quote    — the muted evidence line as-is (source-prefixed citation).
+    inferred value — an evidence string starting with "inferred:" is rendered AS-IS,
+                     visually distinct (muted/italic), so it is never confused with a
+                     real citation. Never dress up an inferred: marker as a citation.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the item + task count for screen readers, e.g.
+     "Calla and Vale task plan: two ranked tasks grounded in Renata's follow-up
+      email — a P1 follow-up email and a P2 proposal to assemble" -->
+<div style="display:flex; flex-direction:column; gap:10px;">
+
+<!--
+  TASK CARD TEMPLATE — repeat one block per retained task, in priority order.
+  {{P_BADGE}} = "P1"/"P2"/…; badge colors per the P# key above ({{P_BG}}/{{P_FG}}
+  hex fallbacks pair with the priority: P1 #FAEEDA/#633806 · P2 #EEEDFE/#3C3489 ·
+  P3+ #F1EFE8/#444441). {{TYPE_LABEL}} = type with underscores → spaces, plus
+  " &middot; rep-owned" for define-only types; pill colors per the type key above.
+  {{EVIDENCE_LINE}} = the task's one muted evidence/detail line (HTML-escaped;
+  an "inferred:" marker rendered as-is per the style contract above).
+-->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1rem 1.25rem;">
+  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+    <span style="background:var(--c-{{P_COLOR}}-50,{{P_BG}}); color:var(--c-{{P_COLOR}}-800,{{P_FG}}); font-size:11px; font-weight:500; padding:2px 8px; border-radius:4px;">{{P_BADGE}}</span>
+    <span style="background:var(--c-{{TYPE_COLOR}}-50,{{TYPE_BG}}); color:var(--c-{{TYPE_COLOR}}-800,{{TYPE_FG}}); font-size:11px; font-weight:500; padding:2px 10px; border-radius:999px;">{{TYPE_LABEL}}</span>
+    <span style="font-weight:500; font-size:15px; margin-left:4px;">{{TITLE}}</span>
+  </div>
+  <p style="font-size:13px; color:var(--text-secondary); margin:0;">{{EVIDENCE_LINE}}</p>
+</div>
+<!-- / END TASK CARD TEMPLATE -->
+
+<!--
+  ═══ COLLECT-TASKS ROUNDUP VARIANT (same card, two additions) ═══
+  For the standalone `collect-tasks` roundup the SAME card layout gains:
+
+  1. A STATUS PILL, appended to the header row after the type-tag pill.
+     Display labels are PRESENTATION ONLY; the persisted enum
+     { not-done | done | deferred } is unchanged:
+       not-done → "open"     (gray:  var(--c-gray-50,#F1EFE8)  / var(--c-gray-800,#444441))
+       deferred → "deferred" (amber: var(--c-amber-50,#FAEEDA) / var(--c-amber-800,#633806))
+       done     → "done"     (teal:  var(--c-teal-50,#E1F5EE)  / var(--c-teal-800,#085041))
+     <span style="background:var(--c-{{STATUS_COLOR}}-50,{{STATUS_BG}}); color:var(--c-{{STATUS_COLOR}}-800,{{STATUS_FG}}); font-size:11px; font-weight:500; padding:2px 10px; border-radius:999px;">{{STATUS_LABEL}}</span>
+
+  2. GROUP HEADERS — cards group under one muted `namespace/slug` heading per item
+     (provenance), tasks ordered by priority within each group:
+     <p style="font-size:12px; color:var(--text-muted); margin:8px 0 0; text-transform:uppercase; letter-spacing:0.04em;">{{NAMESPACE}}/{{SLUG}}</p>
+
+  Status changes remain chat-driven via SET-STATUS — the roundup card stays
+  buttonless and checkbox-less too.
+  ═══════════════════════════════════════════════
+-->
+
+</div>
+</div>

@@ -1,0 +1,113 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  setup-progress-widget.html — pinned layout contract for `render.setup_progress(progress_view)`.
+
+  Added by Story setup-2.1 (2026-07-16): the setup section checklist
+  `setup-unbound` renders at its opening, after each section, on resume, and
+  as the refresh audit view. Rendered as ONE visualize widget fragment per
+  call: one top-level <div>, first child h2.sr-only (widget-fragment
+  constraints, resources/tool-bindings.md "Visualize protocol"). Inline
+  styles only; Cowork CSS vars with hex fallbacks.
+
+  A read-only checklist view of the `progress_view` object the invoking
+  skill assembled — nothing is re-evaluated at render time. `progress_view`
+  = { mode: first-run|refresh|resume, sections[]: { id:
+  process|messaging|assets|voice|state, status: done|active|pending |
+  proposed-changes(n), title?, why?, coverage_note? } }. The section-id enum
+  is fixed in D9 order (process → messaging → assets → voice → state);
+  `proposed-changes(n)` is the refresh/audit status variant (Epic setup-3
+  consumes it with no shape change — build both pill families from this one
+  template); `coverage_note` is an optional muted annotation, e.g. "mostly
+  covered by deck".
+
+  `title` and `why` are optional rep-facing strings; skills/setup-unbound.md
+  owns their values and this template only renders them. `title` absent ⇒
+  render the section `id` verbatim as the row heading; `why` absent ⇒ omit
+  its muted <p> entirely, the rule `coverage_note` already follows.
+
+  LAYOUT (fixed order): header row ("Setup progress" title + muted mode
+  line — first-run | refresh | resume) · section rows (one row per
+  sections[] entry, always in D9 order: section title + status pill + muted
+  why line when the view carries one + muted coverage note when the view
+  carries one).
+
+  NO BUTTONS, NO INPUTS — this widget carries zero affordances and causes no
+  write (ADR-4/ADR-9). It is RENDER-ONLY and conveys nothing back: no
+  `review.collect` call, no verdict, no `capture-feedback` line — silence
+  has no meaning here. Section verdicts flow through `review.collect` items
+  of kind `context_section`, never through this surface. Fallback surface
+  (the plain Markdown section-status list in chat) carries the same fields —
+  ADR-1 field parity.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the mode + every section's title and status for
+     screen readers, e.g. "Setup progress, first run: <process title> done,
+     <messaging title> active, <assets title> pending, <voice title>
+     pending, <state title> pending" — the view's own `title` strings, never
+     the section ids. A section with no `title` is named by its `id`. The
+     `why` lines stay out of this label — five of them in one accessible
+     name makes it unusable. -->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+    <p style="font-size:14px; font-weight:600; margin:0;">Setup progress</p>
+    <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">{{MODE}} &middot; read-only</span>
+  </div>
+  <!-- {{MODE}} is the view's mode verbatim: first-run | refresh | resume -->
+
+  <!--
+    SECTION ROWS — one row per sections[] entry, always in D9 order
+    (process → messaging → assets → voice → state; section titles, why lines and
+    coverage notes are HTML-escaped). The heading is the view's `title`, or
+    the section `id` verbatim when `title` is absent. The optional muted why
+    line renders only when the view carries `why`, and the optional muted
+    coverage-note line only when it carries `coverage_note` — omit either
+    <p> entirely otherwise. Row shapes, keyed to `status`:
+
+    done (teal pill):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start;">
+        <span style="background:var(--c-teal-50,#E1F5EE); color:var(--c-teal-800,#0A5C43); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">done</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{SECTION_TITLE}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{SECTION_WHY}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{COVERAGE_NOTE}}</p>
+        </div>
+      </div>
+
+    active (amber pill — the section currently being worked):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start;">
+        <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">active</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{SECTION_TITLE}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{SECTION_WHY}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{COVERAGE_NOTE}}</p>
+        </div>
+      </div>
+
+    pending (gray pill):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start;">
+        <span style="background:var(--c-gray-50,#F1EFE8); color:var(--c-gray-800,#3F3D38); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">pending</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{SECTION_TITLE}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{SECTION_WHY}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{COVERAGE_NOTE}}</p>
+        </div>
+      </div>
+
+    proposed-changes(n) (amber pill — the refresh/audit variant; {{N}} is the
+    proposed-change count for the section, e.g. "proposed changes (2)"):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start;">
+        <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">proposed changes ({{N}})</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{SECTION_TITLE}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{SECTION_WHY}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{COVERAGE_NOTE}}</p>
+        </div>
+      </div>
+  -->
+  {{SECTION_ROWS}}
+
+</div>
+</div>

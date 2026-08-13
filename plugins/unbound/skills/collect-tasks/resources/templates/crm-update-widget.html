@@ -1,0 +1,168 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  crm-update-widget.html — pinned layout contract for `render.crm_update(crm_view)`.
+
+  Added by the visualize-widgets scope extension (2026-07-09, user-directed):
+  the Step 5 close-out "CRM Updates (simulated)" sub-beat renders as a visualize
+  widget instead of plain in-chat Markdown. Rendered as ONE visualize widget
+  fragment per run: one top-level <div>, first child h2.sr-only (widget-fragment
+  constraints, resources/tool-bindings.md "Visualize protocol"). Inline styles
+  only; Cowork CSS vars with hex fallbacks.
+
+  A read-only card view of the `crm_update` object work-account Step 6.5 handed
+  back (already persisted to drafts/YYYY-MM-DD-crm-update.md by Step 7) —
+  nothing is regenerated, re-evaluated, or altered at render time. `crm_view` =
+  { current_stage, stage_recommendation { recommendation, to_stage, criteria[],
+  unmet[], reason }, next_step, product_gaps[], qualification? { framework,
+  fields[]: { field, status: captured|missing, evidence?, updated }, gaps[]:
+  { field, coach } }, filename }; the FILENAME IS
+  CITED IN CHAT alongside the widget (it is not part of the fragment), together
+  with the explicit nothing-was-written-externally statement.
+
+  LAYOUT (fixed order): header row ("CRM Updates" + amber "simulated · not
+  written" pill) · Stage block (current stage + recommendation pill) · Exit
+  criteria list (one row per criterion: met/unmet pill + criterion text +
+  source-prefixed citation when met — an `inferred:` basis renders as-is,
+  muted/italic, never dressed as a citation; unmet reads "no evidence this
+  run") · Qualification block (ONLY when crm_view carries a qualification
+  block — omitted entirely otherwise, never an empty area or a "0 of 0"
+  line: framework-titled label + "N of M captured" count line — a count,
+  never a percentage, score, or health grade — then one row per field in
+  declaration order: captured/missing pill + field text, with the
+  source-prefixed citation in muted italic on captured rows and
+  "Missing: <field>" + the verbatim coach hint on missing rows) · Next Step
+  block (one line, or the explicit no-next-step reason) · Product Gaps (one
+  cited bullet per gap; honest "none raised this run" when empty).
+
+  NO BUTTONS, NO INPUTS — this widget carries zero affordances and causes no
+  write (ADR-4/ADR-9). It is INFORMATIONAL ONLY: no `review.collect` call, no
+  verdict, no `capture-feedback` line — silence has no meaning here. The rep
+  applies the update to their real CRM manually if they agree; the "simulated ·
+  not written" pill states exactly that. Fallback surface (the plain in-chat
+  Markdown "CRM Updates (simulated)" section) carries the same fields — ADR-1
+  field parity.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the item + recommendation + simulated state for
+     screen readers, e.g. "Simulated CRM update for Calla and Vale: stage
+     technical-validation, recommendation no change, not written to any
+     external system" -->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:32px; height:32px; border-radius:999px; background:var(--c-blue-50,#E6F1FB); color:var(--c-blue-800,#0B3D66); display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="ti ti-database" style="font-size:16px;"></i></div>
+      <p style="font-size:14px; font-weight:600; margin:0;">CRM Updates</p>
+    </div>
+    <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px; white-space:nowrap;">simulated &middot; not written</span>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-bottom:10px;">
+    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 4px;">Stage</p>
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+      <p style="font-size:14px; font-weight:500; margin:0;">{{CURRENT_STAGE}}</p>
+      {{RECOMMENDATION_PILL}}
+      <!--
+        {{RECOMMENDATION_PILL}} — exactly one, keyed to stage_recommendation.recommendation:
+          advance:        <span style="background:var(--c-teal-50,#E1F5EE); color:var(--c-teal-800,#0A5C43); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px;">advance to {{TO_STAGE}}</span>
+          no-change:      <span style="background:var(--c-gray-50,#F1EFE8); color:var(--c-gray-800,#3F3D38); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px;">no change</span>
+          not-applicable: <span style="background:var(--c-gray-50,#F1EFE8); color:var(--c-gray-800,#3F3D38); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px;">not applicable &mdash; {{REASON}}</span>
+      -->
+    </div>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-bottom:10px;">
+    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 6px;">Exit criteria</p>
+    <!--
+      CRITERIA AREA — one row per Exit-criteria bullet of {{CURRENT_STAGE}}, in
+      company/process.md order. OMIT this whole block when recommendation is
+      not-applicable (no criteria were evaluated — never render an empty or
+      invented list). Row shapes:
+
+      met (citable basis — citation keeps its source prefix; an `inferred:`
+      basis renders in the same muted italic, verbatim, never dressed up):
+        <div style="display:flex; gap:8px; align-items:flex-start; margin:0 0 8px;">
+          <span style="background:var(--c-teal-50,#E1F5EE); color:var(--c-teal-800,#0A5C43); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">met</span>
+          <div>
+            <p style="font-size:13px; margin:0;">{{CRITERION_TEXT}}</p>
+            <p style="font-size:12px; font-style:italic; color:var(--text-muted); margin:2px 0 0;">{{SOURCE_PREFIXED_CITATION}}</p>
+          </div>
+        </div>
+
+      unmet (met: false, evidence: null):
+        <div style="display:flex; gap:8px; align-items:flex-start; margin:0 0 8px;">
+          <span style="background:var(--c-gray-50,#F1EFE8); color:var(--c-gray-800,#3F3D38); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">no evidence this run</span>
+          <div>
+            <p style="font-size:13px; margin:0;">{{CRITERION_TEXT}}</p>
+          </div>
+        </div>
+    -->
+    {{CRITERIA_ROWS}}
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-bottom:10px;">
+    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 4px;">Qualification ({{FRAMEWORK}})</p>
+    <p style="font-size:12px; color:var(--text-muted); margin:0 0 8px;">{{N}} of {{M}} captured</p>
+    <!--
+      QUALIFICATION AREA — one row per qualification.fields[] entry, in
+      declaration order, under the "{{N}} of {{M}} captured" count line
+      ({{FRAMEWORK}} = qualification.framework; {{N}} = fields with status
+      captured; {{M}} = every fields[] entry, the declared field count — a
+      count, never a percentage, score, or health grade). OMIT this whole
+      block when crm_view carries no qualification block (never an empty
+      area, never a "0 of 0" line — the same omit-entirely rule as the
+      criteria block on not-applicable). A read-only projection of the
+      handed-back object — nothing re-evaluated at render time, no button,
+      no input, no capture. Row shapes:
+
+      captured (status: captured — the citation keeps its source prefix; an
+      `inferred:` evidence value renders in the same muted italic, verbatim,
+      never dressed as a citation):
+        <div style="display:flex; gap:8px; align-items:flex-start; margin:0 0 8px;">
+          <span style="background:var(--c-teal-50,#E1F5EE); color:var(--c-teal-800,#0A5C43); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">captured</span>
+          <div>
+            <p style="font-size:13px; margin:0;">{{FIELD}}</p>
+            <p style="font-size:12px; font-style:italic; color:var(--text-muted); margin:2px 0 0;">{{SOURCE_PREFIXED_CITATION}}</p>
+          </div>
+        </div>
+
+      missing (status: missing — the coach hint is gaps[].coach VERBATIM,
+      never generated, never re-worded):
+        <div style="display:flex; gap:8px; align-items:flex-start; margin:0 0 8px;">
+          <span style="background:var(--c-gray-50,#F1EFE8); color:var(--c-gray-800,#3F3D38); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">missing</span>
+          <div>
+            <p style="font-size:13px; margin:0;">Missing: {{FIELD}}</p>
+            <p style="font-size:12px; font-style:italic; color:var(--text-muted); margin:2px 0 0;">{{COACH_HINT}}</p>
+          </div>
+        </div>
+    -->
+    {{QUALIFICATION_ROWS}}
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-bottom:10px;">
+    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 2px;">Next step</p>
+    <p style="font-size:13px; margin:0;">{{NEXT_STEP_LINE}}</p>
+    <!-- {{NEXT_STEP_LINE}} — the carried next_step verbatim: on { proposed: true, description }
+         the description; on { proposed: false, reason } "No next step &mdash; {{REASON}}". -->
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px;">
+    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 6px;">Product gaps</p>
+    <!--
+      GAPS AREA — one bullet per product_gaps[] entry, each with its
+      source-prefixed citation in muted italic:
+        <ul style="margin:0; padding-left:18px;">
+          <li style="font-size:13px; margin:0 0 6px;">{{GAP_TEXT}}
+            <span style="display:block; font-size:12px; font-style:italic; color:var(--text-muted);">{{SOURCE_PREFIXED_CITATION}}</span>
+          </li>
+        </ul>
+      Honest empty state (product_gaps is []):
+        <p style="font-size:13px; color:var(--text-muted); margin:0;">none raised this run</p>
+    -->
+    {{PRODUCT_GAPS}}
+  </div>
+
+</div>
+</div>

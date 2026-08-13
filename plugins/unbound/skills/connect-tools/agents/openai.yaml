@@ -1,0 +1,6 @@
+interface:
+  display_name: Connect Tools
+  short_description: Dual-entry environment readiness check.
+  brand_color: '#2F6F4E'
+policy:
+  allow_implicit_invocation: true

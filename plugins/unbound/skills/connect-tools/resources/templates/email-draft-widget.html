@@ -1,0 +1,88 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  email-draft-widget.html — pinned layout contract for `render.email_draft(draft_view)`.
+
+  Generalized from an approved reference design. Rendered as ONE visualize widget fragment
+  per draft: one top-level <div>, first child h2.sr-only (widget-fragment
+  constraints, resources/tool-bindings.md "Visualize protocol"). Inline styles
+  only; Cowork CSS vars with hex fallbacks.
+
+  A mail-client-style preview of the draft file `draft-followup` already wrote —
+  nothing is regenerated or altered at render time. `draft_view` =
+  { to[], subject, body, filename }; the FILENAME IS CITED IN CHAT alongside the
+  widget (it is not part of the fragment).
+
+  LAYOUT (fixed order): To row + amber "draft · not sent" pill · Subject block ·
+  body (paragraphs + lists, rendered from the draft file verbatim, HTML-escaped:
+  &amp;, &mdash;, …) · verdict footer.
+
+  RENDER/CAPTURE — this widget both presents the draft and collects its verdict.
+  The draft and the decision on it live on ONE surface (act where you read); the
+  separate close-out checkpoint card retires for this item. Fallback surface
+  (cited filename + draft body in chat, same three verdicts invited in chat)
+  carries the same fields — ADR-1 field parity.
+
+  sendPrompt GRAMMAR (verdicts — see resources/tool-bindings.md "sendPrompt grammar"):
+    Accept button (accent border = primary action) → sendPrompt('Accept task {{ID}} ({{TITLE_FLATTENED}})')
+    Reject button                                  → sendPrompt('Reject task {{ID}} ({{TITLE_FLATTENED}})')
+    Edit input + Submit                            → sendPrompt('Edit task {{ID}}: ' + value), ONLY when value is non-empty
+    This is the EXISTING per-item verdict grammar — no second grammar is
+    introduced here. {{ID}} is the draft's `source_task` (the persisted task id)
+    and is AUTHORITATIVE; {{TITLE}} is that task's title, legibility only.
+    {{TITLE_FLATTENED}}: flatten `'` and `"` out of the parenthesized title so the
+    handler stays valid JS.
+
+  A CLICK WRITES NOTHING (ADR-9) — the sent prompt IS the return-to-agent turn, and
+  hand-typing the same text is equivalent. The footer is NOT a send affordance:
+  an Edit rewrites the local draft file (draft-followup's APPLY-DRAFT-EDIT) and
+  nothing is ever sent, queued, or renamed — the amber "draft · not sent" pill
+  stays exactly where it is and states that boundary at every cycle.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the recipients, the not-sent state, AND the available
+     actions for screen readers, e.g.
+     "Draft follow-up email to Renata Cordova and Aaron Pruitt at Calla and Vale,
+      not yet sent, with accept, reject, and edit actions" -->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+    <div>
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 2px;">To</p>
+      <p style="font-size:14px; font-weight:500; margin:0;">{{TO_RECIPIENTS}}</p>
+    </div>
+    <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px; white-space:nowrap;">draft &middot; not sent</span>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-bottom:10px;">
+    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 2px;">Subject</p>
+    <p style="font-size:14px; font-weight:500; margin:0;">{{SUBJECT}}</p>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; font-size:13px; line-height:1.6; color:var(--text-primary);">
+    <!--
+      BODY AREA — the draft body verbatim, as paragraphs + lists:
+        paragraph:  <p style="margin:0 0 10px;">…</p>
+        list:       <ul style="margin:0 0 10px; padding-left:18px;"><li>…</li></ul>
+        final line: <p style="margin:0;">…</p>  (e.g. the sign-off; <br> for line breaks)
+    -->
+    {{BODY_PARAGRAPHS_AND_LISTS}}
+  </div>
+
+  <!--
+    VERDICT FOOTER — the draft's own Accept / Reject / Edit controls, on the same
+    card as the draft they judge. Same markup and grammar as the single-item
+    checkpoint card's footer; {{ID}} is the draft's `source_task`.
+  -->
+  <div style="border-top:0.5px solid var(--border); padding-top:14px; margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+    <button onclick="sendPrompt('Accept task {{ID}} ({{TITLE_FLATTENED}})')" style="border-color:var(--border-accent, var(--border-strong));">Accept</button>
+    <button onclick="sendPrompt('Reject task {{ID}} ({{TITLE_FLATTENED}})')">Reject</button>
+  </div>
+  <div style="display:flex; gap:8px; margin-top:8px;">
+    <input id="{{ID}}-edit" type="text" placeholder="Propose an edit to this draft instead" style="flex:1;">
+    <button onclick="var v=document.getElementById('{{ID}}-edit').value; if(v){sendPrompt('Edit task {{ID}}: ' + v);}">Submit edit</button>
+  </div>
+
+</div>
+</div>

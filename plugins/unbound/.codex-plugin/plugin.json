@@ -1,0 +1,40 @@
+{
+  "name": "unbound",
+  "version": "1.4.0",
+  "description": "File-native sales-execution agent for ChatGPT Work — freemium tier: the run-unbound daily orchestrator plus the standalone setup-unbound, connect-tools and collect-tasks skills. A subtractive cut of the base with pro-only features removed.",
+  "skills": "./skills/",
+  "apps": "./.app.json",
+  "author": {
+    "name": "UnCompany",
+    "url": "https://github.com/uncompany-ai/unbound"
+  },
+  "license": "Proprietary",
+  "keywords": [
+    "sales",
+    "crm",
+    "follow-up",
+    "unbound"
+  ],
+  "interface": {
+    "displayName": "Unbound (Free)",
+    "shortDescription": "File-native sales-execution agent: run the daily loop, draft the follow-up, keep the record.",
+    "longDescription": "The free cut of Unbound: the run-unbound daily orchestrator plus the standalone setup-unbound, connect-tools and collect-tasks skills. A subtractive cut of the base with pro-only features removed. The rep works one account or project at a time and nothing is sent without their approval.",
+    "developerName": "UnCompany",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive"
+    ],
+    "websiteURL": "https://github.com/uncompany-ai/unbound",
+    "privacyPolicyURL": "https://github.com/uncompany-ai/unbound#privacy",
+    "termsOfServiceURL": "https://github.com/uncompany-ai/unbound#terms",
+    "brandColor": "#2F6F4E",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
+    "screenshots": [],
+    "defaultPrompt": [
+      "Run Unbound for today's calls and unanswered emails",
+      "Set up Unbound with my company context",
+      "Check my connections and tell me what is missing"
+    ]
+  }
+}

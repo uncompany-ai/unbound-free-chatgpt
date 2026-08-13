@@ -1,0 +1,110 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  connections-widget.html — pinned layout contract for `render.connections(connections_view)`.
+
+  Added by Story setup-1.2 (2026-07-15): the capability status board `connect-tools`
+  presents (both entries — setup's readiness gate and the standalone invocation)
+  renders as a visualize widget instead of a plain Markdown table. Rendered as ONE
+  visualize widget fragment per call: one top-level <div>, first child h2.sr-only
+  (widget-fragment constraints, resources/tool-bindings.md "Visualize protocol").
+  Inline styles only; Cowork CSS vars with hex fallbacks.
+
+  A read-only board view of the `connections_view` object the introspection pass
+  assembled — nothing is re-checked, re-matched, or re-evaluated at render time.
+  `connections_view` = { capabilities[]: { capability, status:
+  connected|missing|degraded, tool?, consequence }, verdict: { ready: true } |
+  { ready: false, exceptions[]: { what, unlocks } } }. `tool` is a concrete name
+  from the live environment (never from skill prose, ADR-6); `consequence` is the
+  run-time cost of a gap in the honest-degradation voice.
+
+  LAYOUT (fixed order): header row ("Connections" title + muted read-only
+  subtitle) · capability rows (one row per capabilities[] entry, in
+  tool-bindings.md table order: capability name + status pill + serving-tool line
+  when bound + muted consequence line on missing/degraded rows) · readiness
+  banner capping the board (READY TO RUN, or READY EXCEPT with one what/unlocks
+  line per exception).
+
+  NO BUTTONS, NO INPUTS — this widget carries zero affordances and causes no
+  write (ADR-4/ADR-9). It is RENDER-ONLY and conveys nothing back: no
+  `review.collect` call, no verdict, no `capture-feedback` line — silence has no
+  meaning here. Binding-change verdicts flow through `review.collect` items of
+  kind `binding_change`, never through this surface. Fallback surface (the plain
+  Markdown capability table + verdict line in chat) carries the same fields —
+  ADR-1 field parity.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the board + verdict for screen readers, e.g.
+     "Capability status board: five capabilities connected, one degraded,
+     verdict ready except transcripts" -->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+    <p style="font-size:14px; font-weight:600; margin:0;">Connections</p>
+    <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">capability status &middot; read-only</span>
+  </div>
+
+  <!--
+    CAPABILITY ROWS — one row per capabilities[] entry, in the order the
+    capabilities appear in tool-bindings.md's binding tables. Row shapes, keyed
+    to `status` (capability names and tool names are HTML-escaped):
+
+    connected (tool present — the serving-tool line names the concrete tool
+    from the live environment; no consequence line):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start;">
+        <span style="background:var(--c-teal-50,#E1F5EE); color:var(--c-teal-800,#0A5C43); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">connected</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{CAPABILITY}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">served by {{TOOL}}</p>
+        </div>
+      </div>
+
+    degraded (partially served — serving-tool line only when a `tool` is bound;
+    the consequence line states the run-time cost, honest voice, verbatim from
+    the view):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start;">
+        <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">degraded</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{CAPABILITY}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">served by {{TOOL}}</p>
+          <p style="font-size:12px; font-style:italic; color:var(--text-muted); margin:2px 0 0;">{{CONSEQUENCE}}</p>
+        </div>
+      </div>
+
+    missing (nothing serves it — no tool line, never an invented name; the
+    consequence line is mandatory):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start;">
+        <span style="background:var(--c-gray-50,#F1EFE8); color:var(--c-gray-800,#3F3D38); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">missing</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{CAPABILITY}}</p>
+          <p style="font-size:12px; font-style:italic; color:var(--text-muted); margin:2px 0 0;">{{CONSEQUENCE}}</p>
+        </div>
+      </div>
+  -->
+  {{CAPABILITY_ROWS}}
+
+  <!--
+    READINESS BANNER — exactly one, capping the board, keyed to `verdict`:
+
+    ready: true (every hard-required capability resolved):
+      <div style="border-top:0.5px solid var(--border); margin-top:4px; padding-top:12px;">
+        <div style="background:var(--c-teal-50,#E1F5EE); color:var(--c-teal-800,#0A5C43); border-radius:8px; padding:10px 12px;">
+          <p style="font-size:13px; font-weight:600; margin:0;">READY TO RUN</p>
+        </div>
+      </div>
+
+    ready: false (one what/unlocks line per exceptions[] entry — `what` names
+    the unresolved capability or invalid artifact; `unlocks` names what fixing
+    it restores; both verbatim from the view, HTML-escaped):
+      <div style="border-top:0.5px solid var(--border); margin-top:4px; padding-top:12px;">
+        <div style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); border-radius:8px; padding:10px 12px;">
+          <p style="font-size:13px; font-weight:600; margin:0 0 6px;">READY EXCEPT</p>
+          <p style="font-size:12px; margin:0 0 4px;">{{WHAT}} &mdash; <span style="font-style:italic;">unlocks: {{UNLOCKS}}</span></p>
+        </div>
+      </div>
+  -->
+  {{READINESS_BANNER}}
+
+</div>
+</div>

@@ -1,0 +1,158 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  context-preview-widget.html — pinned layout contract for `render.context_preview(preview_view)`.
+
+  Added by Story setup-2.1 (2026-07-16): the drafted-artifact preview
+  `setup-unbound` presents in its section loop, before each verdict.
+  Rendered as ONE visualize widget fragment per call: one top-level <div>,
+  first child h2.sr-only (widget-fragment constraints,
+  resources/tool-bindings.md "Visualize protocol"). Inline styles only;
+  Cowork CSS vars with hex fallbacks.
+
+  A read-only preview of the `preview_view` object the extraction pass
+  assembled — nothing is regenerated or altered at render time.
+  `preview_view` = { section_id, title?, why?, drafted_content, provenance[]:
+  { block_ref, label }, gaps[] }. `drafted_content` is the artifact SHAPED LIKE ITSELF —
+  the thing being built, not a transcript of chat. Content shape is keyed to
+  `section_id` (the D9 enum):
+    messaging → POSITIONING BLOCK: labeled prose blocks (positioning
+                statement, proof points, tone), one block per drafted part;
+    process   → STAGE-LADDER PIPELINE: the ordered stage chips rendered as a
+                pipeline, each stage's exit criteria listed beneath it;
+    assets    → SIX-COLUMN ASSET TABLE: the fixed assets.md header row plus
+                one row per indexed asset;
+    state     → the seeded run-state keys as labeled lines (last_run,
+                timezone, queue).
+
+  PROVENANCE CHIPS ({{PROVENANCE_CHIP}} — `Evidence · <source> <locator>` /
+  `Answer · rep`) annotate each drafted block. They are a PREVIEW-ONLY
+  OVERLAY — visually distinct from the artifact content (purple chip,
+  never body text), NEVER written to company/* files; the accepted artifact
+  strips them. Gap callouts render in the D13 blockquote voice ("Gap:
+  <what's missing>. Fill via a setup-unbound refresh.") and are the only
+  overlay content that persists (as D13 blockquotes in the written file).
+
+  `title` and `why` are optional rep-facing strings; skills/setup-unbound.md
+  owns their values and this template only renders them. `title` absent ⇒
+  render the `section_id` verbatim as the card heading; `why` absent ⇒ omit
+  its muted <p> entirely. Both are PREVIEW-ONLY OVERLAYS under the same rule
+  as the provenance chips — never written into company/* or state/*.
+
+  LAYOUT (fixed order): header row (card title + amber "preview · not
+  written" pill, then the muted why line when the view carries one) ·
+  content area (one of the per-section_id shapes above,
+  each drafted block carrying its provenance chip) · gap callouts (one per
+  gaps[] entry; omit the area entirely when gaps is []).
+
+  HONEST EMPTY STATES: a section whose extraction produced nothing renders
+  its gap callouts only — never invented content, never an empty shape
+  dressed as data; the assets table with zero data rows renders the fixed
+  header row plus the muted line "no assets indexed yet" (an honestly-empty
+  index beats a fabricated one).
+
+  NO BUTTONS, NO INPUTS — this widget carries zero affordances and causes no
+  write (ADR-4/ADR-9). It is RENDER-ONLY and conveys nothing back: no
+  `review.collect` call, no verdict, no `capture-feedback` line — silence
+  has no meaning here. Section verdicts flow through `review.collect` items
+  of kind `context_section`, never through this surface. Fallback surface
+  (the drafted section as plain Markdown in chat) carries the same fields —
+  ADR-1 field parity.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the section by its `title` + the preview state
+     for screen readers, e.g. "Preview of the drafted <messaging title>:
+     positioning statement, three proof points, one gap; nothing written
+     yet" — the view's own `title` string, never the section id. A view with
+     no `title` is named by its `section_id`. The `why` line stays out of
+     this label. -->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+    <p style="font-size:14px; font-weight:600; margin:0;">{{SECTION_TITLE}}</p>
+    <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px; white-space:nowrap;">preview &middot; not written</span>
+    <p style="font-size:12px; color:var(--text-muted); margin:0; flex-basis:100%;">{{SECTION_WHY}}</p>
+  </div>
+  <!-- {{SECTION_TITLE}} is the view's `title` — the rep-facing name of the
+       drafted artifact, declared in skills/setup-unbound.md's step-1 table
+       and passed in verbatim; the `section_id` verbatim when `title` is
+       absent. {{SECTION_WHY}} is the view's `why`, rendered as the muted
+       full-width line beneath the heading; omit that whole <p> when the
+       view carries no `why`. Both are HTML-escaped. -->
+
+  <!--
+    PROVENANCE CHIP — the shared overlay idiom used inside every content
+    shape below. One chip per drafted block, label verbatim from
+    provenance[] ({{PROVENANCE_LABEL}} = `Evidence · <source> <locator>`,
+    e.g. "Evidence · deck p.4", or `Answer · rep`; HTML-escaped). Purple,
+    so the overlay never reads as artifact content:
+      <span style="background:var(--c-purple-50,#EEEDFE); color:var(--c-purple-800,#3C3489); font-size:10px; font-weight:500; padding:1px 7px; border-radius:999px; white-space:nowrap;">{{PROVENANCE_LABEL}}</span>
+
+    CONTENT AREA — exactly one shape, keyed to section_id (all dynamic text
+    HTML-escaped):
+
+    messaging → positioning block. One labeled block per drafted part
+    (label examples: Positioning statement · Proof point · Tone), the
+    drafted text as body prose, the block's provenance chip beside the
+    label:
+      <div style="border-top:0.5px solid var(--border); padding:10px 0;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 4px;">
+          <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0;">{{BLOCK_LABEL}}</p>
+          <span style="background:var(--c-purple-50,#EEEDFE); color:var(--c-purple-800,#3C3489); font-size:10px; font-weight:500; padding:1px 7px; border-radius:999px; white-space:nowrap;">{{PROVENANCE_LABEL}}</span>
+        </div>
+        <p style="font-size:13px; margin:0;">{{BLOCK_TEXT}}</p>
+      </div>
+
+    process → stage-ladder pipeline. One chip row for the ordered stage
+    tokens (arrows between them), then one block per stage with its exit
+    criteria and the stage's provenance chip:
+      <div style="border-top:0.5px solid var(--border); padding:10px 0;">
+        <p style="font-size:13px; font-weight:500; margin:0 0 8px;">{{STAGE_1}} &rarr; {{STAGE_2}} &rarr; {{STAGE_3}}</p>
+        <div style="margin:0 0 8px;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 4px;">
+            <p style="font-size:12px; font-weight:500; margin:0;">{{STAGE_NAME}}</p>
+            <span style="background:var(--c-purple-50,#EEEDFE); color:var(--c-purple-800,#3C3489); font-size:10px; font-weight:500; padding:1px 7px; border-radius:999px; white-space:nowrap;">{{PROVENANCE_LABEL}}</span>
+          </div>
+          <ul style="margin:0; padding-left:18px;">
+            <li style="font-size:12px; color:var(--text-muted); margin:0 0 2px;">{{EXIT_CRITERION}}</li>
+          </ul>
+        </div>
+      </div>
+
+    assets → six-column asset table. The fixed assets.md header row, one
+    row per indexed asset, the row's provenance chip in its last cell.
+    Honest empty state: zero data rows ⇒ keep the header row and add
+    <p style="font-size:13px; color:var(--text-muted); margin:6px 0 0;">no assets indexed yet</p>:
+      <div style="border-top:0.5px solid var(--border); padding:10px 0; overflow-x:auto;">
+        <table style="border-collapse:collapse; width:100%; font-size:12px;">
+          <tr>
+            <th style="text-align:left; padding:4px 8px 4px 0; border-bottom:0.5px solid var(--border); font-weight:600;">{{COL_1}}</th>
+            <!-- … one <th> per assets.md column, six in the fixed order … -->
+          </tr>
+          <tr>
+            <td style="padding:4px 8px 4px 0; border-bottom:0.5px solid var(--border);">{{CELL}}</td>
+            <!-- … five more cells; the row's provenance chip appended inside the final cell … -->
+          </tr>
+        </table>
+      </div>
+
+    state → labeled lines, one per seeded run-state key (last_run,
+    timezone, queue), each with its provenance chip (the same
+    label-beside-chip block shape as messaging).
+  -->
+  {{CONTENT}}
+
+  <!--
+    GAP CALLOUTS — one per gaps[] entry, after the content area; omit this
+    whole area when gaps is []. D13 blockquote voice, verbatim from the
+    view ({{GAP_TEXT}} = what's missing, e.g. "no proof points found in
+    provided sources"; HTML-escaped):
+      <div style="border-left:3px solid var(--c-amber-800,#633806); background:var(--c-amber-50,#FAEEDA); border-radius:0 8px 8px 0; padding:8px 12px; margin-top:10px;">
+        <p style="font-size:12px; color:var(--c-amber-800,#633806); margin:0;"><strong>Gap:</strong> {{GAP_TEXT}}. Fill via a setup-unbound refresh.</p>
+      </div>
+  -->
+  {{GAP_CALLOUTS}}
+
+</div>
+</div>

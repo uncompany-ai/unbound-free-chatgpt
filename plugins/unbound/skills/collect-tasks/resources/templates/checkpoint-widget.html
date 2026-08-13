@@ -1,0 +1,93 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  checkpoint-widget.html — pinned layout contract for single-item
+  `review.collect(checkpoint_view)` calls.
+
+  Generalized from an approved reference design. Rendered as ONE visualize widget fragment
+  per call — ONE ITEM PER CALL. Surviving roles: the material-edit re-confirm at
+  run-unbound Step 3.5 (the one re-shaped task, after an edit that changed what the
+  task is) and the setup-time `context_section` / `binding_change` kinds; batch plan
+  triage is batch-triage-widget.html's, not this card's. One top-level <div>, first
+  child h2.sr-only (widget-fragment constraints, resources/tool-bindings.md
+  "Visualize protocol"). Inline styles only; Cowork CSS vars with hex fallbacks.
+
+  CARD BODY (fixed order): header row (P# badge + type pill + title) · rationale
+  paragraph · Evidence block · two-column context grid · footer affordances
+  (Accept / Reject buttons + free-text edit input).
+
+  P# BADGE / TYPE PILL — same keys as task-plan-widget.html:
+    P1 amber (#FAEEDA/#633806) · P2 purple (#EEEDFE/#3C3489) · P3+ gray (#F1EFE8/#444441);
+    followup_email → blue (#E6F1FB/#0C447C); define-only types → gray + " · rep-owned".
+
+  EVIDENCE BLOCK — source-prefixed uppercase label + the quote in italics:
+    email citation → label "Evidence · email ({{SENDER}})"
+    call citation  → label "Evidence · call ({{CALL_TYPE}})"
+    An "inferred:" evidence marker is rendered AS-IS (never dressed as a citation);
+    keep it visually distinct — muted, not quote-italic.
+
+  CONTEXT GRID — two columns rendered from the task's typed `context` block; the
+  labels vary by task type (type-appropriate, uppercase-muted like the Evidence label):
+    followup_email  → Recipients / Asks
+    create_proposal → Audience / Scope
+    answer_questions → Questions (single wide column acceptable when one field)
+    create_deck / create_one_pager → Audience / Angle
+    prepare_demo    → Audience / Use case
+    internal        → Note
+  Only grounded fields render — an absent context field is omitted, never padded.
+
+  sendPrompt GRAMMAR (verdicts — see resources/tool-bindings.md "sendPrompt grammar"):
+    Accept button (accent border = primary action) → sendPrompt('Accept task {{ID}} ({{TITLE_FLATTENED}})')
+    Reject button                                  → sendPrompt('Reject task {{ID}} ({{TITLE_FLATTENED}})')
+    Edit input + Submit                            → sendPrompt('Edit task {{ID}}: ' + value), ONLY when value is non-empty
+    Every string is SELF-DESCRIBING (names the task id AND title) — a click sends
+    plain text with no widget identity attached. {{ID}} is the persisted task id
+    (t1, t2, …) and is AUTHORITATIVE; the title is legibility/disambiguation only.
+    {{TITLE_FLATTENED}}: flatten `'` and `"` out of the parenthesized title so the
+    handler stays valid JS (the visible {{TITLE}} keeps HTML-escaped punctuation:
+    &amp;, &mdash;, …). A click writes nothing (ADR-9) — the sent prompt IS the
+    return-to-agent turn; hand-typing the same text is equivalent.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the task + affordances for screen readers, e.g.
+     "Checkpoint for task P1: send pricing and packaging guide plus clienteling
+      expansion options, with accept, reject, and edit actions" -->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
+
+  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+    <span style="background:var(--c-{{P_COLOR}}-50,{{P_BG}}); color:var(--c-{{P_COLOR}}-800,{{P_FG}}); font-size:11px; font-weight:500; padding:2px 8px; border-radius:4px;">{{P_BADGE}}</span>
+    <span style="background:var(--c-{{TYPE_COLOR}}-50,{{TYPE_BG}}); color:var(--c-{{TYPE_COLOR}}-800,{{TYPE_FG}}); font-size:11px; font-weight:500; padding:2px 10px; border-radius:999px;">{{TYPE_LABEL}}</span>
+    <span style="font-weight:500; font-size:16px; margin-left:2px;">{{TITLE}}</span>
+  </div>
+
+  <p style="font-size:13px; color:var(--text-secondary); margin:0 0 10px;">{{RATIONALE}}</p>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-bottom:10px;">
+    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 4px;">Evidence &middot; {{SOURCE_KIND}} ({{SOURCE_DETAIL}})</p>
+    <!-- {{SOURCE_KIND}} ∈ email|call; {{SOURCE_DETAIL}} = sender for email, call_type for call -->
+    <p style="font-size:13px; color:var(--text-primary); margin:0; font-style:italic;">{{EVIDENCE_QUOTE}}</p>
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-bottom:14px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    <div>
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 4px;">{{CONTEXT_LABEL_1}}</p>
+      <p style="font-size:13px; margin:0;">{{CONTEXT_VALUE_1}}</p>
+    </div>
+    <div>
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 4px;">{{CONTEXT_LABEL_2}}</p>
+      <p style="font-size:13px; margin:0;">{{CONTEXT_VALUE_2}}</p>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button onclick="sendPrompt('Accept task {{ID}} ({{TITLE_FLATTENED}})')" style="border-color:var(--border-accent, var(--border-strong));">Accept</button>
+    <button onclick="sendPrompt('Reject task {{ID}} ({{TITLE_FLATTENED}})')">Reject</button>
+  </div>
+  <div style="display:flex; gap:8px; margin-top:8px;">
+    <input id="{{ID}}-edit" type="text" placeholder="Propose an edit to this task instead" style="flex:1;">
+    <button onclick="var v=document.getElementById('{{ID}}-edit').value; if(v){sendPrompt('Edit task {{ID}}: ' + v);}">Submit edit</button>
+  </div>
+
+</div>
+</div>

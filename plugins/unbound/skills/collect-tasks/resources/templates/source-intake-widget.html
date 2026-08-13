@@ -1,0 +1,112 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  source-intake-widget.html — pinned layout contract for `render.source_intake(intake_view)`.
+
+  Added by Story setup-source-intake-1 (2026-08-09): the source-catalog
+  checklist `setup-unbound` renders when its step-2 intake opens and
+  re-renders after each item's answer. Rendered as ONE visualize widget
+  fragment per call: one top-level <div>, first child h2.sr-only
+  (widget-fragment constraints, resources/tool-bindings.md "Visualize
+  protocol"). Inline styles only; Cowork CSS vars with hex fallbacks.
+
+  A read-only checklist view of the `intake_view` object the invoking skill
+  assembled — nothing is re-evaluated at render time. `intake_view` = { mode:
+  first-run|resume|refresh, items[]: { id:
+  sales-process|pitch-deck|positioning|brand|messaging-guide|website|asset-list|own-writing,
+  ask, why, status: pending|provided|interview|skipped, note? } }. The item-id
+  enum is the step-2 catalog's eight ids, in table order; `note` is an
+  optional muted annotation, e.g. "deck received", "no playbook".
+
+  `ask` and `why` are required rep-facing strings; skills/setup-unbound.md
+  owns their values in its step-2 catalog table and this template only renders
+  them. `status` is required — an item carrying none is a caller bug, never a
+  render-time default, because a silently-`pending` item is indistinguishable
+  from an answered one. `note` absent ⇒ omit its muted <p> entirely, the rule
+  `coverage_note` already follows on setup-progress-widget.html. `ask`, `why`
+  and `note` are HTML-escaped.
+
+  A narrowed view — the managed path's single `own-writing` row, or resume's
+  remaining items — is an ordinary use of this shape, never a variant: render
+  exactly the items[] entries the view carries, in the order it carries them.
+
+  LAYOUT (fixed order): header row ("Source intake" title + muted mode line —
+  first-run | resume | refresh) · item rows (one row per items[] entry, in the
+  view's order: the item's ask + status pill + muted why line + muted note
+  line when the view carries one).
+
+  NO BUTTONS, NO INPUTS — this widget carries zero affordances and causes no
+  write (ADR-4/ADR-9). It is RENDER-ONLY and conveys nothing back: no
+  `review.collect` call, no verdict, no `capture-feedback` line — silence has
+  no meaning here. Intake answers (have it | interview me | skip) are given in
+  chat, exactly as the gap interview's answers already are. Fallback surface
+  (the plain Markdown item-status list in chat) carries the same fields —
+  ADR-1 field parity.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the mode + every item's ask and status for
+     screen readers, e.g. "Source intake, first run: <sales-process ask>
+     provided, <pitch-deck ask> pending, <positioning ask> skipped, ..." — the
+     view's own `ask` strings, never the item ids. The `why` lines stay out of
+     this label — eight of them in one accessible name makes it unusable. -->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+    <p style="font-size:14px; font-weight:600; margin:0;">Source intake</p>
+    <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">{{MODE}} &middot; read-only</span>
+  </div>
+  <!-- {{MODE}} is the view's mode verbatim: first-run | resume | refresh -->
+
+  <!--
+    ITEM ROWS — one row per items[] entry, in the view's own order (the
+    step-2 catalog order; asks, why lines and notes are HTML-escaped). The
+    heading is the view's `ask`. The muted why line always renders; the
+    optional muted note line renders only when the view carries `note` — omit
+    that <p> entirely otherwise. Row shapes, keyed to `status`:
+
+    pending (gray pill — not yet asked):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start;">
+        <span style="background:var(--c-gray-50,#F1EFE8); color:var(--c-gray-800,#3F3D38); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">pending</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{ITEM_ASK}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{ITEM_WHY}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{ITEM_NOTE}}</p>
+        </div>
+      </div>
+
+    provided (teal pill — the rep handed it over):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start;">
+        <span style="background:var(--c-teal-50,#E1F5EE); color:var(--c-teal-800,#0A5C43); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">provided</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{ITEM_ASK}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{ITEM_WHY}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{ITEM_NOTE}}</p>
+        </div>
+      </div>
+
+    interview (amber pill — no document, ask me in the section loop):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start;">
+        <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">interview</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{ITEM_ASK}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{ITEM_WHY}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{ITEM_NOTE}}</p>
+        </div>
+      </div>
+
+    skipped (muted gray pill — no document and no questions; the row itself
+    dims to separate a chosen skip from an unanswered pending):
+      <div style="border-top:0.5px solid var(--border); padding:8px 0; display:flex; gap:8px; align-items:flex-start; opacity:0.6;">
+        <span style="background:var(--c-gray-50,#F1EFE8); color:var(--text-muted); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">skipped</span>
+        <div>
+          <p style="font-size:13px; font-weight:500; margin:0;">{{ITEM_ASK}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{ITEM_WHY}}</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{ITEM_NOTE}}</p>
+        </div>
+      </div>
+  -->
+  {{ITEM_ROWS}}
+
+</div>
+</div>
