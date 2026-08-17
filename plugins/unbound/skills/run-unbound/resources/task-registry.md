@@ -40,7 +40,7 @@ Contract's (Part B), not a consequence of ADR-4 or any wider prohibition.
 · expected `proposed_action` (the intent signal the handler's trigger contract checks) · `when` (the
 precondition under which this type is the right typing — read at synthesis, required on every row).
 
-The MVP set re-homes today's `run-unbound` Step 4 prose table **verbatim** — only `followup_email`
+The initial set re-homes today's `run-unbound` Step 4 prose table **verbatim** — only `followup_email`
 executes (and because it folds N asks into one email, its invocation is `once-per-run`); every other
 type is `define-only` with handler and invocation blank.
 
@@ -169,6 +169,13 @@ canonical file. The overlay composes onto core; core stays immutable and re-pinn
 - **Conformance obligation (execute rows).** Every `execute` overlay row names a `handler` present in
   the client's own `skills/` pack, and that handler **honors Part B** (the Handler Contract) exactly
   as a core handler does. A `define-only` overlay row leaves handler and invocation blank, same as core.
+- **Skill-scoped capabilities (overlay handlers).** An overlay handler may carry a `## Capabilities`
+  section — its own binding table, same columns as the runtime bindings authority — declaring and
+  resolving its capabilities in-skill instead of through `runtime/tool-bindings.md`. Read, render,
+  and write scopes may all be declared; every row carries a **mandatory Fallback** that degrades
+  honestly when its tool is absent, because nothing centrally checks these rows. A write-scope row
+  fires only inside an accepted task's turn — the Step 3.5 accept stays the one gate (ADR-12), and
+  this clause moves it nowhere.
 
 ---
 
@@ -240,10 +247,15 @@ One log line **per cycle**, append-only — a changed mind is a new line, never 
 no cycle cap is needed or permitted. Accept ends it; silence ends it with nothing further written,
 the artifact at its last applied state, narrated honestly as abandoned rather than as accepted.
 
-The obligation is on **applying** the edit, **not** on any render capability — a handler presents
-its artifact on whatever surface its pack defines, falling back to the cited filename plus the
-content in chat. **No new logical capability is introduced** by this clause, and no new writer: the
-one file the procedure rewrites is the artifact the handler already owned under `drafts/`.
+Presenting the artifact and collecting its verdict is **the loop's obligation, not the handler's**:
+at the handler's own turn inside EXECUTE TASKS, the loop presents the handler's artifact via its
+designated render capability — **`render.artifact` by default**, or a more specific one the handler
+already names (`draft-followup` keeps `render.email_draft`) — and collects the verdict there. A
+handler that writes an artifact and hands back needs **no presentation code of its own** to get a
+working verdict surface. **No new writer**: the render capability **collects** the verdict, it does
+not write anything itself. This clause is **additive**, framed exactly as the Turn-accounting clause
+above frames its own: no existing handler becomes non-conforming by it, and **a client pack conforms
+by doing nothing**.
 
 ### May assume (gate precondition, FR19)
 

@@ -18,6 +18,7 @@ gap with its run-time cost. All environment access is read-only, and it never au
 - The bundled bindings reference — `resources/tool-bindings.md` beside this skill's bundled resources when it exists, otherwise `runtime/tool-bindings.md` in a corpus checkout. Read-only, and three things at once: the requirements source (its binding tables, including the declared future write gate), the schema-of-record every core update refreshes, and the file Procedure step 0 seeds from.
 - `runtime/tool-bindings.md` in the working tree — the current binding state those requirements are matched against, and the one file this skill maintains; Procedure step 0 creates it from the reference when it is absent.
 - The runtime's live tool inventory — inspected read-only in-session; concrete tool names enter the conversation only from here.
+- Optional CRM binding profiles — `resources/binding-profiles/crm/` beside bundled resources when it exists, otherwise `runtime/binding-profiles/crm/` in a corpus checkout; inactive recipes opened only after step 2 observes their provider.
 - Logical capability `review.collect(checkpoint_view)`, items of kind `binding_change` — the propose surface; item grammar and verdict routing live in `runtime/tool-bindings.md` under `## review.collect`.
 - Logical capability `render.connections(connections_view)` — the report surface; view shape and board text rules live in `runtime/tool-bindings.md` under `## render.connections`.
 
@@ -55,17 +56,43 @@ against, never the requirements themselves.
 live session exposes. Concrete names arrive from the environment into the conversation, and reach
 `runtime/tool-bindings.md` only through accepted proposals.
 
+**2.5 — Profile (optional).** Complete step 2 over the full live inventory before listing or
+reading any provider profile. Resolve the optional profile directory named in Reads. If the whole
+resource is absent, continue ordinary discovery without a readiness gap. After enumeration, list
+filenames only; for each observed CRM provider, open only its corresponding candidate. Never use a
+profile or filename as connector-presence evidence.
+
+- A profile is current only when its provider and runtime match the observation and every surface
+  it marks required is present with a compatible documented call shape, including identity and
+  primary read. Missing expected or stale ⇒ report the reason concisely, ignore that recipe for
+  proposals, continue ordinary discovery, and change no row. Optional correlation or cleanup drift
+  is reported and that path omitted without invalidating a current primary path.
+- For each current candidate, run only the read-only call in its `Organization check`, with the
+  exact documented shape. Display provider and every available organization/workspace name, ID,
+  environment type, domain, and authenticated account; require explicit confirmation of the
+  intended identity. Decline removes the candidate. One survivor still requires an explicit
+  authoritative-CRM confirmation; several require the rep to choose exactly one authoritative
+  provider. This choice is separate from `binding_change` verdicts and accepts neither CRM row.
+
 **3 — Match.** Classify every derived capability against its binding cell in the working-tree file
 and the enumerated inventory: *resolved* (the bound tool is present), *resolvable* (a suitable tool
 exists but the binding row is absent or stale), or *unresolved* (nothing suitable — the capability
 degrades per its criticality).
 
 - For a declared write-scoped row, `resolved` additionally requires the working-tree row to carry
-  verified evidence satisfying every production-eligibility requirement owned by the reference.
+  verified evidence satisfying a production-eligibility path the reference owns.
   A matching live tool with missing, incomplete, or merely asserted evidence is
   *present-but-ineligible*: retain the concrete inventory match, classify the capability status as
   `degraded`, and select its documented non-production fallback. Never infer evidence from a tool's
   name, presence, documentation summary, or a successful one-off call.
+- Where the reference's contract defines a **recovery path** for the write, evaluate its
+  confirmations in this same pass, each positively from the live environment: the candidate write
+  tool's field-level shape, the presence and binding state of the reference-named backing read
+  capability on the same provider, and the availability of the durable local state home the
+  contract names. Every confirmation held live ⇒ the row is *present-and-qualifiable* — step 4 may
+  propose eligibility with the mapping. Any leg missing ⇒ present-but-ineligible with that leg
+  named as the gap; the confirmations are observations, never assumptions, and a partial set
+  records nothing.
 - A *resolvable* row is further classified **unambiguous** when all three hold: (1) its Scope cell
   is `read`, or the row is a render/capture surface — stated positively, so any scope value not in
   that set requires a verdict; (2) exactly one tool in step 2's live inventory matches the
@@ -94,8 +121,16 @@ capability, the concrete tool found, and the exact row edit to the working-tree 
 - A proposal for a declared write-scoped row states two outcomes separately: the candidate tool is
   present, and whether the row has verified production-eligibility evidence. Accepting a mapping-only
   proposal may record the concrete tool but leaves the row degraded; it must not describe the row as
-  connected for production writes. Evidence is proposed only when the required observations are
+  connected for production writes. For a row step 3 classified *present-and-qualifiable*, the
+  proposal carries eligibility with the mapping — naming the recovery path and each cited
+  confirmation — and one accepted verdict records both, the row then production-eligible on that
+  path; the proposal states plainly what accepting enables (live external writes at close-out,
+  each still requiring in-session approval of the exact payload) and what declining keeps
+  (simulate). Story-record (replay) evidence is never collectable from an inventory pass and never
+  proposed from one. Evidence is proposed only when the required observations are
   actually available and cited — never manufactured to make the proposal pass.
+- A profile-derived accepted proposal changes only the deployment working file. It never edits the
+  bundled reference or a profile; one provider choice never substitutes for either row verdict.
 - The write boundary around every verdict is in Invariants.
 
 **5 — Report.** Assemble `connections_view`: one entry per derived capability plus the
@@ -111,11 +146,14 @@ ready-or-exceptions `verdict`, matching the shape declared in `runtime/tool-bind
   make.
 - For a declared write-scoped row, report inventory presence independently: a present candidate may
   carry `tool` while its status remains `degraded`. Its consequence says production writes are
-  disabled and names the documented fallback. Use `connected` only when positive binding and every
-  reference-owned production-eligibility requirement are both verified.
+  disabled, names the missing eligibility leg where one confirmation short of the recovery path,
+  and names the documented fallback. Use `connected` only when positive binding and a complete
+  reference-owned production-eligibility path are both verified — its consequence then states the
+  path plainly (e.g. live external writes enabled via read-back recovery; every write still
+  requires in-session approval of the exact payload).
 - Render via the logical `render.connections` capability only on positive confirmation that the widget tool is present in the runtime's tool list.
 - Otherwise emit the plain-Markdown capability table plus verdict line — identical content, never an assumed rich UI.
-- Write each `consequence` in the honest-degradation voice, derived from the reference's own degradation notes — for example: no transcript source ⇒ calls worked `transcript: missing`; no email source ⇒ discovery is calendar-only; no `web.fetch` ⇒ website intake unavailable; no widget tool ⇒ plain-chat surfaces; no CRM write connected ⇒ CRM updates are simulated / drafted locally; no CRM read connected ⇒ qualification is evaluated from the run's own evidence and the account's stored context alone, so anything only the CRM already knows still gets asked.
+- Write each `consequence` in the honest-degradation voice, derived from the reference's own degradation notes — for example: no transcript source ⇒ calls worked `transcript: missing`; no email source ⇒ discovery is calendar-only; no `web.fetch` ⇒ website intake unavailable; no widget tool ⇒ plain-chat surfaces; no CRM write connected ⇒ CRM updates are simulated / drafted locally; no CRM read connected ⇒ qualification is evaluated from the run's own evidence and the account's stored context alone, so anything only the CRM already knows still gets asked; no task manager connected ⇒ task plans stay local-only and statuses reconcile nowhere.
 - Close per entry point: standalone ⇒ end with this report as the session summary; gate entry ⇒ hand the identical report back to the invoking `setup-unbound` — behavior identical, framing only.
 
 ## Writes
@@ -140,6 +178,8 @@ ready-or-exceptions `verdict`, matching the shape declared in `runtime/tool-bind
 - Never a silent gap: every unresolved capability is reported with its concrete run-time consequence.
 - Never promote write presence into write eligibility: a declared write-scoped row lacking any
   required evidence remains degraded after matching and after an accepted mapping proposal.
+  Eligibility enters a row only through an accepted proposal citing a reference-owned path's
+  complete confirmations — presence alone, or a partial set, records nothing and stays degraded.
 
 ---
 

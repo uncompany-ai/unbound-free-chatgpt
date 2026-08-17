@@ -6,10 +6,10 @@
   "plugins": [
     {
       "name": "unbound",
-      "displayName": "Unbound (Free)",
-      "version": "1.4.0",
-      "publisher": "UnCompany",
-      "description": "File-native sales-execution agent for ChatGPT Work — freemium tier: the run-unbound daily orchestrator plus the standalone setup-unbound, connect-tools and collect-tasks skills. A subtractive cut of the base with pro-only features removed. Built from core v1.4.0.",
+      "displayName": "Unbound",
+      "version": "2.1.0",
+      "publisher": "Uncompany",
+      "description": "Your sales playbook, drafted after every call. You approve what happens next. Built from core v2.1.0.",
       "source": {
         "source": "local",
         "path": "./plugins/unbound"

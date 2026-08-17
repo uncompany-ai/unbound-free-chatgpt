@@ -1,6 +1,6 @@
 ---
 name: write-crm
-description: Close-out skill that owns the CRM write/simulate boundary. Invoked by run-unbound at the Step 5 CRM close-out sub-beat (composition slot 8) with the in-memory crm_update object work-account handed back. RESOLVE separates live tool presence from production eligibility; every unbound, unconfirmed, legacy, or replay-unverified mapping takes the unchanged simulate branch, persisting drafts/YYYY-MM-DD-crm-update.md and rendering "(simulated)". Where a mapping does qualify, an approved update lands at most once and an interrupted close-out resumes without a second push. NOT part of the run loop's task dispatch and NOT a task-registry handler (external write lives outside the Handler Contract).
+description: Close-out skill that owns the CRM write/simulate boundary. Invoked by run-unbound at the Step 5 CRM close-out sub-beat (composition slot 8) with the in-memory crm_update object work-account handed back. RESOLVE separates live tool presence from production eligibility (replay-proven or recovery-verified); every unbound, unconfirmed, legacy, or path-unqualified mapping takes the unchanged simulate branch, persisting drafts/YYYY-MM-DD-crm-update.md and rendering "(simulated)". Where a mapping does qualify, an approved update lands at most once — by provider replay or by ledger-plus-read-back recovery — and an interrupted close-out resumes without a second push. NOT part of the run loop's task dispatch and NOT a task-registry handler (external write lives outside the Handler Contract).
 tier: all
 ---
 # write-crm

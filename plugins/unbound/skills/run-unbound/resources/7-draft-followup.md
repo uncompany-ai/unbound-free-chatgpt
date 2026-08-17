@@ -135,9 +135,9 @@ referenced or planned content was named.
 
 - Emit it in-memory and narrate it. The task is define-only; nothing is created in this run (on adoption the rep promotes it into the plan). Make no Drive call, add no write capability, write no link into the draft, and leave `asset_referenced: none` / `status: draft` intact. Do not persist to `drafts/*-tasks.yaml` (`work-account` owns that). Hand back to the loop.
 
-**7 — DRAFT VERDICT CAPTURE.** Driven by `run-unbound`'s combined output gate (its NEXT STEPS
-beat), where the draft and its verdict controls are one surface; runs only if a draft was written
-and only when the rep actually reacts.
+**7 — DRAFT VERDICT CAPTURE.** Driven by the EXECUTE TASKS beat's artifact-verdict gate
+(`triage-and-execute.md` Step 4), at this task's own turn, where the draft and its verdict controls
+are one surface; runs only if a draft was written and only when the rep actually reacts.
 
 - Read the draft's `source_task` frontmatter as the `task_id` (fall back to the stable id `email` if absent).
 - Normalize the reply to `accept | edit | reject` and capture any note verbatim.

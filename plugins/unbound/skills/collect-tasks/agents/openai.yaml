@@ -1,6 +1,6 @@
 interface:
   display_name: Collect Tasks
   short_description: Cross-item task roundup.
-  brand_color: '#2F6F4E'
+  brand_color: '#0E0F12'
 policy:
   allow_implicit_invocation: true

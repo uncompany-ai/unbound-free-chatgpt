@@ -1,12 +1,16 @@
 # Unbound — ChatGPT Work marketplace
 
-This repository is the public **ChatGPT Work** marketplace for [Unbound](https://uncompany.ai), the
-file-native sales-execution agent by UnCompany. It serves the free tier.
+This repository is the public **ChatGPT Work** marketplace for [Unbound](https://uncompany.ai) —
+from Uncompany. It is the self-serve preview of a sales playbook in motion.
+
+**Unbound is the preview; the install is the product.** The marketplace lets a rep see the
+reviewable daily loop. The paid install configures the playbook, sources, and operating design for
+the way a team actually sells.
 
 ## Install
 
 In the ChatGPT desktop app, in **Work mode**, add this repository as a plugin marketplace and
-install **Unbound (Free)**. The marketplace entry is at `.agents/plugins/marketplace.json` and the
+install **Unbound**. The marketplace entry is at `.agents/plugins/marketplace.json` and the
 plugin tree at `plugins/unbound/`.
 
 Installation copies the plugin into ChatGPT's plugin cache and the host runs that cached copy, so
@@ -20,7 +24,7 @@ its own repository, because a marketplace is discovered at a repository root.
 
 ## Provenance
 
-The published tree is the gate-verified build artifact of core `v1.4.0`.
+The published tree is the gate-verified build artifact of core `v2.1.0`.
 
 ## Maintenance
 

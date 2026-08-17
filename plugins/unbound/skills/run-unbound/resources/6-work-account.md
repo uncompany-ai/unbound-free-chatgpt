@@ -35,9 +35,10 @@ CAPTURE-QUALIFICATION procedures (Steps 16–18).
 
 ## Procedure
 
-Run Steps 1–9 in this fixed order; Steps 10–15 are later, rep-driven beats, and Steps 16–18 are
-shared procedures invoked by name at their owning loop beats. Step 18 also accepts an explicit
-rep-stated qualification fact at close-out; it is never volunteered as another ask.
+Run Steps 1–9 in this fixed order, **6.5 excepted**; Steps 10–15 are later, rep-driven beats, and
+Steps 6.5 and 16–18 are shared procedures invoked by name at their owning loop beats. Step 18 also
+accepts an explicit rep-stated qualification fact at close-out; it is never volunteered as another
+ask.
 **Reference precedes all synthesis** — no task is produced before grounding is loaded.
 
 **1 — REFERENCE.** Load all grounding before producing any task:
@@ -48,9 +49,11 @@ rep-stated qualification fact at close-out; it is never volunteered as another a
 - **Read once, then reuse (the read-once rule).** Four of the seven are immutable for the life of the run: the managed apply (`run-unbound` Step 1.5) is the only in-run writer of `company/process.md`, `company/messaging.md`, and `company/assets.md`, and it has already run by the time any item is selected; `rep/voice.md` has no in-run writer at all. They load once, in the session's **first** REFERENCE batch; every later consumer — a later selected item's REFERENCE, `draft-followup`'s MATCH-ASSET and DRAFT — reuses this session's load rather than re-opening them. The per-item three (`context.md`, the prior tasks file with its `drafts/` listing, the feedback log) are per-item state and stay freshly read each selection. The run's `timezone` follows the same rule: read by `run-unbound` at its Step 1, written by nothing until the run ends, it is reused in-session wherever a later beat needs a date — never a reason to re-open `state/run-state.yaml`.
 - Hold `selected_item.evidence[]` ready as the primary source of what was said / written.
 - Iterate every evidence entry as a peer grounding source: call transcripts and email bodies carry equal weight, not a primary/secondary hierarchy.
+- **One pass, collected per consumer:** Step 5 `open_questions`, 6.5 `product_gaps`, exit criteria, qualification fields. Timing, never guarantees.
 - Treat each `content` payload as verbatim signal — do not paraphrase, truncate, or normalize.
 - With two or more entries for the slug, treat the union of their `content` as one grounding pool; the plan must cohere across all of it.
 - An `evidence_status: missing` entry contributes no `content` — synthesize from the remaining grounding (see Invariants).
+
 
 **2 — SYNTHESIZE.** Derive candidate actions and emit them as `tasks[]` in the canonical task
 schema (below):
@@ -127,7 +130,7 @@ Then **hand the ranked plan back** to `run-unbound` — do not render it here. T
 rep-facing surface is `run-unbound`'s Step 3.5 triage, where each task carries its own verdict
 controls; a render at synthesis time would only duplicate it, buttonless, one beat early:
 
-- The handback carries the ranked `tasks`, plus `dropped`, `open_questions`, `next_step`, and `crm_update` — the same in-memory channel as before, with no surrounding narration.
+- The handback carries the ranked `tasks`, plus `dropped`, `open_questions` and `next_step` — the same in-memory channel as before, with no surrounding narration.
 - The `inferred:` marker stays distinct from a citation wherever it is later surfaced.
 - The handed-back plan and the persisted `tasks.yaml` describe the same tasks (same content, two surfaces).
 - Surface `dropped` only on demand (Step 12); list `open_questions` after the tasks; state `next_step` in one sentence after the open questions.
@@ -141,7 +144,7 @@ path. Those cards convey nothing back: status changes remain explicit chat asks.
 - Emit `open_questions[]`: questions **actually raised and left unanswered** across all `evidence[]` sources for this slug.
 - A question counts only if it was not answered elsewhere in `evidence[]` or in `context.md` — an answered question is not open.
 - Boundary: this list is **this run's extraction only**. `context.md` is consulted solely to disqualify an already-answered question, never to source one — carrying a still-unanswered prior question forward is ENRICH's union (Step 8), not this step's.
-- Iterate every `evidence[]` entry: questions can come from any source, call or email.
+- Sources: the one-pass rule.
 - Phrase each as a clear, self-contained question faithful to what was asked, whatever its source.
 - When the retained plan carries an `answer_questions` task, copy the final `open_questions[]` verbatim into that task's `context.questions` — the one permitted alignment write, pre-persist.
 - Touch nothing else in `tasks`/`dropped`/`rationale`/`evidence`/`next_step`.
@@ -154,77 +157,6 @@ path. Those cards convey nothing back: status changes remain explicit chat asks.
 - Suggest timing only where the evidence/context supports it; never manufacture a step or a date to look thorough.
 - Touches nothing else.
 
-**6.5 — CRM UPDATE (simulated).** Extract-and-evaluate only. Emit the in-memory `crm_update`
-object (schema below) — the field-level update a CRM *would* receive — handed back in-memory for
-`write-crm` to apply at close-out (persist + render on its simulate branch; **not** written here).
-Touches nothing in `tasks`/`dropped`/`open_questions`/
-`next_step`; the recommendation is advisory only (see Invariants — ENRICH is the sole stage
-writer). Four blocks:
-
-- **`stage_recommendation`** — evaluate the REFERENCE-time stage (the `stage:` loaded from `context.md` in Step 1, before ENRICH runs) against that stage's `**Exit criteria:**` bullets in `company/process.md`:
-  - Enum-validate the stage first — never evaluate criteria against an invented stage:
-    - A project (null stage) → `recommendation: not-applicable`, `reason: "project — no sales stage"`.
-    - A terminal stage (`closed-won` / `closed-lost`) → `not-applicable`, `reason: "terminal stage"`.
-    - An out-of-enum stage → `not-applicable`, carrying the out-of-enum flag's wording.
-  - In all three `not-applicable` cases skip the criteria evaluation; `next_step` and `product_gaps` are still produced.
-  - Otherwise evaluate each `**Exit criteria:**` bullet against the union of this run's `evidence[]` `content` payloads and `context.md` (Summary + Activity Log).
-  - A criterion is `met: true` **only** with a citable basis, recorded per the citation discipline (see Invariants — source-prefixed, cross-checked, unlocatable → `inferred:`).
-  - No grounding for a criterion → `met: false`, `evidence: null`; an `evidence_status: missing` entry contributes nothing.
-  - **Advancement gate:** recommend `advance` **only when every criterion is `met: true` with a non-`inferred` citation**; an `inferred:` basis is recorded on its criterion but counts as **unmet** for the gate.
-    - When advancing, `to_stage` = the next stage in `company/process.md`'s documented order (`discovery → demo → technical-validation → proposal → negotiation → closed-won`).
-  - Anything less → `recommendation: no-change` with `unmet[]` listing the outstanding criterion texts verbatim.
-  - Only the next sequential stage is ever proposed; skips and reverts are rep judgment, never recommended.
-- **`next_step`** — copied **verbatim** from Step 6's object; never re-decided, never reworded. This is the one permitted carry.
-- **`product_gaps[]`** — extract-only: iterate every `evidence[]` entry as a peer source and collect the capability gaps, unsupported asks, and feature requests the prospect **actually raised**.
-  - Phrase each as a self-contained statement faithful to the source, with a source-prefixed citation.
-  - A gap is something the prospect needs that the product/deal cannot currently satisfy — distinct from `open_questions[]` (things to answer) and never duplicated into tasks.
-- **`qualification`** — declaration-driven and conditional; emit `{ framework, fields[], gaps[] }` only when the selected item is an account, its REFERENCE-time stage is not `closed-won` or `closed-lost`, and `company/process.md` has one well-formed `## Qualification` section. Qualification applicability is independent of the stage enum: an out-of-enum account stage still evaluates this block even though `stage_recommendation` is `not-applicable`.
-  - A well-formed declaration has exactly one non-empty `**Framework:**` line and one or more distinct bold-term field bullets, each with exactly one non-empty `Evidence:` child and one non-empty `Coach:` child. Field text is the verbatim join key; never normalize, case-fold, or fuzzy-match it.
-  - An absent section omits this block entirely. For a project or terminal account, omit it entirely. A malformed section is skipped and its exact defect is surfaced plainly; none of these paths changes, retries, or suppresses `stage_recommendation`, `next_step`, or `product_gaps`.
-  - For every declared field, in declaration order, evaluate its `Evidence:` criterion against the union of this run's `evidence[]` `content` payloads, `context.md` Summary and Activity Log, and the existing `qualification:` frontmatter block.
-  - Emit each field as `{ field, status, evidence?, updated }`, where `status` is exactly `captured | missing`. `captured` requires a source-prefixed citation cross-checked against the corresponding source under the standing citation discipline. If a basis cannot be located, record `evidence: "inferred: <reasoning>"` and keep `status: missing`; with no basis, omit `evidence` and keep `status: missing`.
-  - Captured is durable: when current sources are silent, a prior entry with the same verbatim field key and `status: captured` stays captured. Cite it through the existing context kind as `context.md: "<prior evidence value verbatim>"`, preserving that prior evidence value inside the citation and preserving the prior `updated` date. Only an explicit rep edit may downgrade a captured field.
-  - `gaps[]` is exactly the `fields[]` entries whose status is `missing`, in declaration order. Each gap is `{ field, coach }`, with `coach` copied byte-for-byte from that field's `Coach:` value in `company/process.md`; never generate, normalize, or reword coaching text.
-  - Qualification never gates: the advancement gate above continues to use only the REFERENCE-time stage's `**Exit criteria:**` bullets. Even with qualification gaps, all exit criteria met still yields `recommendation: advance`.
-
-```yaml
-crm_update:
-  current_stage: technical-validation        # REFERENCE-time stage from context.md; null for projects
-  stage_recommendation:
-    recommendation: no-change                # advance | no-change | not-applicable
-    to_stage: null                           # next sequential stage token, only when advance
-    criteria:                                # one entry per Exit-criteria bullet of current_stage
-      - criterion: "Technical stakeholders have signed off that the platform meets their requirements, OR"
-        met: false
-        evidence: null                       # source-prefixed citation when met (or inferred:)
-      - criterion: "A pilot has hit its agreed success criteria"
-        met: true
-        evidence: "transcript: 'the pilot hit the latency target we agreed on'"
-    unmet:                                   # criterion texts verbatim, only when no-change
-      - "Technical stakeholders have signed off that the platform meets their requirements, OR"
-    reason: null                             # only when not-applicable (project / terminal / out-of-enum)
-  next_step:                                 # verbatim from Step 6 — never re-decided
-    proposed: true
-    description: "Schedule the security-review session with their infra team"
-  product_gaps:                              # extract-only; honest empty list when none
-    - gap: "No native Okta SSO integration"
-      evidence: "email: 'does the platform support Okta SSO out of the box?'"
-  qualification:                             # optional; omitted when not applicable
-    framework: MEDDPICC                      # example only; value comes from process.md
-    fields:
-      - field: Metrics
-        status: captured
-        evidence: "transcript: 'the Monday rebuild takes nine hours'"
-        updated: 2026-08-05
-      - field: Decision Criteria
-        status: missing
-        evidence: "inferred: security and adoption likely matter, but no source states the criteria"
-        updated: 2026-08-05
-    gaps:                                    # exact missing-field projection
-      - field: Decision Criteria
-        coach: "ask what a clear yes looks like on paper, and who wrote it"
-```
-
 **7 — PERSIST.** Run only after a grounded task list exists:
 
 - Write the in-memory task object as **valid pure YAML** to `accounts|projects/<slug>/drafts/YYYY-MM-DD-tasks.yaml`.
@@ -234,7 +166,7 @@ crm_update:
 - A carried task also persists its `carried_from` block (schema below) alongside `status: not-done`. This is the only site that writes the field.
   - A same-date re-run overwrites the same file, so `count` always derives from the **prior** file and is never incremented in place.
 - The YAML and the chat-rendered list describe the same content.
-- Step 7 persists **only** the tasks YAML. The Step 6.5 `crm_update` object is **not** written here — it rides back on the in-memory handback; `write-crm` (invoked by `run-unbound` at close-out) owns its persist + render on the simulate branch.
+- Step 7 persists **only** the tasks YAML.
 
 ```yaml
 tasks:
@@ -274,23 +206,19 @@ next_step:
   description: "Schedule the technical deep-dive call for next week"
 ```
 
-The Step 6.5 `crm_update` object is **not** persisted here — it rides back on the in-memory
-handback for `write-crm` (invoked by `run-unbound` at close-out) to apply. Persisting
-`drafts/YYYY-MM-DD-crm-update.md` and rendering it is `write-crm`'s job on its simulate branch;
-a downstream crm-update failure there never rolls back this tasks YAML or blocks ENRICH (Step 8) /
-RECORD WORK (Step 9) — the task plan is the run's primary artifact.
+A downstream crm-update failure at close-out never rolls back this tasks YAML or blocks ENRICH
+(Step 8) / RECORD WORK (Step 9) — the task plan is the run's primary artifact.
 
-**8 — ENRICH.** Update the item's `context.md`:
+**8 — ENRICH.** Update the item's `context.md` — every change below composed into **one** in-memory rewrite of Step 1's loaded copy, applied as Step 18(d)–(e)'s single write, never a sequence of per-field edits:
 
 - Append a **new** dated `## Activity Log` entry — append-only: preserve all prior entries; add the heading if absent.
 - In the entry, reference the just-written draft by filename and note notable call facts and the stage change ("stage to X" or "unchanged").
 - Refresh frontmatter: `updated` = the session date; `open_questions` = the union defined in the next bullet; `last_next_step` = this run's `next_step` description (or the top task's title when `proposed` is false).
-- `open_questions` is a **union, never a replacement**: this run's Step 5 list plus every prior frontmatter entry, minus any entry this run's `evidence[]` or `context.md` **answers**. A question the counterparty did not re-raise therefore survives the cycle instead of being overwritten out of the file. The prior entries are the ones Step 1 already loaded with `context.md` — this adds no read.
-  - Dropping the answered entries is what bounds the list — it accumulates open questions only, never answered ones — so no cap and no age rule is needed.
+- `open_questions` is a **union, never a replacement**: this run's Step 5 list plus every prior frontmatter entry, minus any entry this run's `evidence[]` or `context.md` **answers**. A question the counterparty did not re-raise therefore survives the cycle instead of being overwritten out of the file.
+  - Dropping answered entries is what bounds the list — no cap and no age rule is needed.
   - De-duplicate on question text: a prior entry and a Step 5 question asking the same thing appear **once**, carrying the **prior phrasing verbatim**. A carried question is never re-worded and never duplicated.
 - Refresh the `stage` field only on explicit transcript evidence of a transition, and only to a value in `company/process.md`'s enum — else leave it unchanged.
-- When Step 6.5 emitted `qualification`, create the optional frontmatter `qualification: { framework, fields[] }` block on first evaluation or merge it by the fields' verbatim join keys thereafter. Persist the emitted framework and fields; `gaps[]` is a derived in-memory handback and is not stored. For a prior captured field carried through current silence, the in-memory result exposes the carry as a `context.md:` citation, but the stored field keeps its pre-run `evidence` value and `updated` date byte-for-byte rather than persisting or nesting that wrapper; only an explicit rep edit may downgrade it.
-  - When Step 6.5 omitted qualification because the declaration was absent or inapplicable, write no qualification block and leave any existing block byte-unchanged. Never bootstrap, migrate, backfill, or add a compatibility shim: the block is absent until the first applicable evaluation.
+- The optional `qualification:` block is **not** written here. CAPTURE-QUALIFICATION (Step 18) is its sole authority and persists Step 6.5's evaluation at close-out (`close-out`, NEXT STEPS) — including the absent-or-inapplicable case, which leaves any existing block byte-unchanged.
 - Projects leave `stage`/`competitive_threats` null.
 - Writes only the local `context.md`; does not re-extract or re-decide upstream outputs.
 
@@ -394,9 +322,13 @@ via `mark-handled(namespace, slug, task_id)`, in this exact order:
 - Log nothing: this procedure's whole write is the one single-field plan-file rewrite.
 
 **18 — CAPTURE-QUALIFICATION (shared procedure).** Authored here once; reused by name (never
-re-authored) by `run-unbound`'s Step 5 close-out beat. Persist explicit rep answers through
-`capture-qualification(namespace, slug, answers[])`, where each answer is `{ field, answer }`, in
-this exact order:
+re-authored) by `run-unbound`'s Step 5 close-out beat. **Sole** authority on the optional
+`qualification:` block; two input modes share every clause below: **evaluation mode**,
+`capture-qualification(namespace, slug, evaluation)` carrying Step 6.5's emitted
+`{ framework, fields[] }` already in stored shape; and **answers mode**,
+`capture-qualification(namespace, slug, answers[])` where each answer is `{ field, answer }`.
+`close-out` invokes both, evaluation first — that ordering is stated there, not here. In this exact
+order:
 
 - (a) require `namespace: accounts` before reading or writing anything. A project or any other
   namespace is surfaced as inapplicable and writes nothing; never create account state under a
@@ -406,21 +338,26 @@ this exact order:
   declaration is surfaced and writes nothing; never infer a framework or field set.
 - (c) validate every input entry independently against the declaration. The `field` must equal one
   declared bold-term field **verbatim** — no trim, normalization, case-folding, alias, or fuzzy
-  match. Surface each unknown field and omit it from the write. An absent answer or one containing
-  no non-whitespace characters is empty and is skipped; an accepted answer is stored byte-for-byte,
-  including its original capitalization and punctuation.
+  match. Surface each unknown field and omit it from the write. In answers mode an absent answer or
+  one containing no non-whitespace characters is empty and is skipped; an accepted answer is stored
+  byte-for-byte, including its original capitalization and punctuation.
 - (d) build one candidate rewrite in memory. Create the optional `qualification:` block when it is
-  absent; otherwise rewrite it in place. Set its `framework` from the current declaration. For each
-  valid non-empty answer, create or replace the single `fields[]` entry with the same verbatim field
-  key as `{ field, status: captured, evidence: 'rep-stated (YYYY-MM-DD): "<verbatim>"', updated:
-  YYYY-MM-DD }`, using the run's timezone date. Preserve every unaddressed field entry and every
+  absent; otherwise rewrite it in place. Set its `framework` from the current declaration. In
+  answers mode, for each valid non-empty answer, create or replace the single `fields[]` entry with
+  the same verbatim field key as `{ field, status: captured, evidence: 'rep-stated (YYYY-MM-DD):
+  "<verbatim>"', updated: YYYY-MM-DD }`, using the run's timezone date. In evaluation mode, store
+  each emitted entry **byte-for-byte** — its own `status`, `evidence` and `updated`, never re-stamped
+  `captured` or given `rep-stated` provenance; `gaps[]` is derived in memory and never stored.
+  Preserve every unaddressed field entry and every
   unrelated frontmatter/body byte. Re-answering a field replaces that keyed entry — including when
   a field repeats in one input array — and never appends a duplicate; input order makes the last
   valid answer for that key the final value.
-- (e) when at least one valid non-empty answer remains, perform **one** `context.md` rewrite and in
-  that same write append exactly one dated `## Activity Log` line for the invocation, naming the
-  captured field or fields. An invocation containing only project input, unknown fields, or empty
-  answers writes nothing and appends no log line. Never partially apply the candidate rewrite.
+- (e) in answers mode, when at least one valid non-empty answer remains, perform **one** `context.md`
+  rewrite and in that same write append exactly one dated `## Activity Log` line for the invocation,
+  naming the captured field or fields. An invocation containing only project input, unknown fields,
+  or empty answers writes nothing and appends no log line. Evaluation mode makes the same single
+  rewrite but appends **no** log line: ENRICH's entry already records the cycle. Never partially
+  apply the candidate rewrite.
 - (f) surface per-entry outcomes plainly. On the `context.md` write failing, surface the failure,
   leave the pre-invocation file authoritative, claim no capture, do not retry silently, and let
   close-out continue.
@@ -433,10 +370,83 @@ this exact order:
   nothing until the rep disambiguates. This path is rep-driven and is never volunteered as a second
   structured ask.
 
+**6.5 — CRM UPDATE (simulated, shared procedure).** Authored here once; reused by name (never
+re-authored) by `run-unbound`'s Step 5 close-out beat, which invokes it unconditionally on every
+path and owns the ordering, stated there. Outside the Steps 1–9 synthesis order by design:
+evaluating after the rep's verdicts is what stops it grading an exit criterion an untriaged task
+exists to satisfy. Extract-and-evaluate only. Emit the in-memory `crm_update` object (schema
+below) — the field-level update a CRM *would* receive, handed back for `write-crm`, **not** written
+here. Touches nothing in `tasks`/`dropped`/`open_questions`/`next_step`; the recommendation is
+advisory only (see Invariants — ENRICH is the sole stage writer). Four blocks:
+
+- **`stage_recommendation`** — evaluate the REFERENCE-time stage (the `stage:` loaded from `context.md` in Step 1, before ENRICH runs) against that stage's `**Exit criteria:**` bullets in `company/process.md`:
+  - Enum-validate the stage first — never evaluate criteria against an invented stage:
+    - A project (null stage) → `recommendation: not-applicable`, `reason: "project — no sales stage"`.
+    - A terminal stage (`closed-won` / `closed-lost`) → `not-applicable`, `reason: "terminal stage"`.
+    - An out-of-enum stage → `not-applicable`, carrying the out-of-enum flag's wording.
+  - In all three `not-applicable` cases skip the criteria evaluation; `next_step` and `product_gaps` are still produced.
+  - Otherwise evaluate each `**Exit criteria:**` bullet against the union of this run's `evidence[]` `content` payloads and `context.md` (Summary + Activity Log).
+  - A criterion is `met: true` **only** with a citable basis, recorded per the citation discipline (see Invariants — source-prefixed, cross-checked, unlocatable → `inferred:`).
+  - No grounding for a criterion → `met: false`, `evidence: null`; an `evidence_status: missing` entry contributes nothing.
+  - **Advancement gate:** recommend `advance` **only when every criterion is `met: true` with a non-`inferred` citation**; an `inferred:` basis is recorded on its criterion but counts as **unmet** for the gate.
+    - When advancing, `to_stage` = the next stage in `company/process.md`'s documented order (`discovery → demo → technical-validation → proposal → negotiation → closed-won`).
+  - Anything less → `recommendation: no-change` with `unmet[]` listing the outstanding criterion texts verbatim.
+  - Only the next sequential stage is ever proposed; skips and reverts are rep judgment, never recommended.
+- **`next_step`** — copied **verbatim** from Step 6's object; never re-decided, never reworded. This is the one permitted carry.
+- **`product_gaps[]`** — extract-only, peer-weighted: the capability gaps, unsupported asks, and feature requests the prospect **actually raised**.
+  - Phrase each as a self-contained statement faithful to the source, with a source-prefixed citation.
+  - A gap is something the prospect needs that the product/deal cannot currently satisfy — distinct from `open_questions[]` (things to answer) and never duplicated into tasks.
+- **`qualification`** — declaration-driven and conditional; emit `{ framework, fields[], gaps[] }` only when the selected item is an account, its REFERENCE-time stage is not `closed-won` or `closed-lost`, and `company/process.md` has one well-formed `## Qualification` section. Qualification applicability is independent of the stage enum: an out-of-enum account stage still evaluates this block even though `stage_recommendation` is `not-applicable`.
+  - A well-formed declaration has exactly one non-empty `**Framework:**` line and one or more distinct bold-term field bullets, each with exactly one non-empty `Evidence:` child and one non-empty `Coach:` child. Field text is the verbatim join key; never normalize, case-fold, or fuzzy-match it.
+  - An absent section omits this block entirely. For a project or terminal account, omit it entirely. A malformed section is skipped and its exact defect is surfaced plainly; none of these paths changes, retries, or suppresses `stage_recommendation`, `next_step`, or `product_gaps`.
+  - For every declared field, in declaration order, evaluate its `Evidence:` criterion against the union of this run's `evidence[]` `content` payloads, `context.md` Summary and Activity Log, and the existing `qualification:` frontmatter block.
+  - Emit each field as `{ field, status, evidence?, updated }`, where `status` is exactly `captured | missing`. `captured` requires a source-prefixed citation cross-checked against the corresponding source under the standing citation discipline. If a basis cannot be located, record `evidence: "inferred: <reasoning>"` and keep `status: missing`; with no basis, omit `evidence` and keep `status: missing`.
+  - Captured is durable: when current sources are silent, a prior entry with the same verbatim field key and `status: captured` stays captured. Cite it through the existing context kind as `context.md: "<prior evidence value verbatim>"`, preserving that prior evidence value inside the citation and preserving the prior `updated` date. Only an explicit rep edit may downgrade a captured field.
+  - `gaps[]` is exactly the `fields[]` entries whose status is `missing`, in declaration order. Each gap is `{ field, coach }`, with `coach` copied byte-for-byte from that field's `Coach:` value in `company/process.md`; never generate, normalize, or reword coaching text.
+  - Qualification never gates: the advancement gate above continues to use only the REFERENCE-time stage's `**Exit criteria:**` bullets. Even with qualification gaps, all exit criteria met still yields `recommendation: advance`.
+
+```yaml
+crm_update:
+  current_stage: technical-validation        # REFERENCE-time stage from context.md; null for projects
+  stage_recommendation:
+    recommendation: no-change                # advance | no-change | not-applicable
+    to_stage: null                           # next sequential stage token, only when advance
+    criteria:                                # one entry per Exit-criteria bullet of current_stage
+      - criterion: "Technical stakeholders have signed off that the platform meets their requirements, OR"
+        met: false
+        evidence: null                       # source-prefixed citation when met (or inferred:)
+      - criterion: "A pilot has hit its agreed success criteria"
+        met: true
+        evidence: "transcript: 'the pilot hit the latency target we agreed on'"
+    unmet:                                   # criterion texts verbatim, only when no-change
+      - "Technical stakeholders have signed off that the platform meets their requirements, OR"
+    reason: null                             # only when not-applicable (project / terminal / out-of-enum)
+  next_step:                                 # verbatim from Step 6 — never re-decided
+    proposed: true
+    description: "Schedule the security-review session with their infra team"
+  product_gaps:                              # extract-only; honest empty list when none
+    - gap: "No native Okta SSO integration"
+      evidence: "email: 'does the platform support Okta SSO out of the box?'"
+  qualification:                             # optional; omitted when not applicable
+    framework: MEDDPICC                      # example only; value comes from process.md
+    fields:
+      - field: Metrics
+        status: captured
+        evidence: "transcript: 'the Monday rebuild takes nine hours'"
+        updated: 2026-08-05
+      - field: Decision Criteria
+        status: missing
+        evidence: "inferred: security and adoption likely matter, but no source states the criteria"
+        updated: 2026-08-05
+    gaps:                                    # exact missing-field projection
+      - field: Decision Criteria
+        coach: "ask what a clear yes looks like on paper, and who wrote it"
+```
+
 ## Writes
 
 - `accounts|projects/<slug>/drafts/YYYY-MM-DD-tasks.yaml` — PERSIST (Step 7); also the single-field SET-STATUS write, the promotion rewrite, the APPLY-EDIT rewrite (Step 15), and MARK-HANDLED's single-field `handled_on` write (Step 17).
-- `accounts|projects/<slug>/context.md` — ENRICH (Step 8): appended `## Activity Log` entry + frontmatter refresh, including the optional account-only `qualification:` create/merge after evaluation. Account-only CAPTURE-QUALIFICATION (Step 18) is the second named authority on the same optional block and appends one Activity Log line in its single successful rewrite.
+- `accounts|projects/<slug>/context.md` — ENRICH (Step 8): appended `## Activity Log` entry + frontmatter refresh; it never touches the optional `qualification:` block. Account-only CAPTURE-QUALIFICATION (Step 18) is that block's **sole** authority, invoked at close-out, and appends one Activity Log line in a successful answers-mode rewrite.
 - `state/run-state.yaml` — the item's `work[]` record: created by RECORD WORK (Step 9), its `phase` rewritten in place by ADVANCE-PHASE (Step 16), and removed by that same procedure at `closed` — which, in the very same write, sets `processing_status: processed` on the event records that removed record named. No other record and no other field; `last_run` and `timezone` are never touched here.
 - `state/feedback-log.jsonl` — `capture-feedback` append, one line per verdict / one `edit` per promotion; Step 18 never writes it.
 
@@ -489,7 +499,7 @@ this exact order:
 
 **Interaction**
 
-- Steps 11–15 are rep-driven only — never volunteered. Steps 16–17 are the loop's, invoked by name at their own beats. Step 18 is invoked only for a returned Step 5 qualification answer or an explicit rep-stated close-out fact; the latter path is never volunteered as another ask.
+- Steps 11–15 are rep-driven only — never volunteered. Steps 6.5 and 16–17 are the loop's, invoked by name at their own beats. Step 18 is invoked only for a returned Step 5 qualification answer or an explicit rep-stated close-out fact; the latter path is never volunteered as another ask.
 - Silence is not a verdict: no rep reaction → write nothing.
 - Ambiguity → ask; never guess or invent the referent — a task id, dropped entry, verdict, or status value.
 - An `edit` verdict on a **task** is recorded and applied only through APPLY-EDIT's bounded field set; an **email-draft** `edit` is applied by `draft-followup`'s APPLY-DRAFT-EDIT (its own artifact, its own bounded field set, the same write-first-then-log discipline) — never by this skill.

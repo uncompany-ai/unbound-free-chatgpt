@@ -1,126 +1,70 @@
 <!--
-  ═══════════════════════════════════════════════════════════════════════════
-  batch-triage-widget.html — pinned layout contract for the BATCH
-  `review.collect(checkpoint_view)` call at run-unbound Step 3.5 (PLAN TRIAGE).
+  batch-triage-widget.html — pinned layout for the BATCH
+  review.collect(checkpoint_view) call at run-unbound Step 3.5 (PLAN TRIAGE):
+  ONE fragment for the whole plan, one card per retained task in priority
+  order, ONE submit returning every verdict in a single turn. Single-item sites
+  keep checkpoint-widget.html.
 
-  Rendered as ONE visualize widget fragment for the WHOLE plan — one card per
-  retained task, in priority order, each carrying its own verdict controls. This
-  is the surface that replaced the buttonless plan render + N single-item
-  checkpoints: context and control sit on the same card, and ONE submit returns
-  every verdict in one turn. The single-item checkpoint-widget.html survives for
-  material-edit re-confirms and the setup-time item kinds; it is not used here.
+  NOT RESTATED HERE — fragment constraints, this surface's rules, and the batch
+  sendPrompt grammar the footer handler implements: resources/tool-bindings.md
+  ("Visualize protocol", "Interactive triage card stack", "sendPrompt
+  grammar"). The P#/type/evidence style contract, the "inferred:" rule, and the
+  {{P_*}}/{{TYPE_*}}/escaping vocabulary: task-plan-widget.html.
 
-  One top-level <div>, first child h2.sr-only (widget-fragment constraints,
-  resources/tool-bindings.md "Visualize protocol"). Inline styles only; Cowork
-  CSS custom properties with hex fallbacks; no external assets.
+  TRIAGE-ONLY PLACEHOLDERS — {{ID}} the persisted task id (authoritative);
+  {{ITEM_KEY}} the item slug; {{IDS_JSON}} the ordered id array fixing
+  submission order; {{ITEM_NAME_FLATTENED}} the flattened item name;
+  {{SOURCE_KIND}} ∈ email|call with {{SOURCE_DETAIL}} = sender or call_type.
+  The typed `context` block is deliberately NOT rendered — triage is
+  keep/kill/fix across N tasks; depth belongs to the output gate.
 
-  CARD BODY (fixed order, one card per retained task): header row (P# badge +
-  type pill + title) · rationale paragraph · one source-prefixed Evidence line ·
-  control group (Accept / Edit / Reject) · the Edit-revealed note input.
-  FOOTER (once, below the stack): the untouched-cards hint + one Submit verdicts
-  button (accent border = the only primary action on the fragment).
-
-  PROGRESSIVE DISCLOSURE — the typed `context` block (recipients, asks,
-  questions) is deliberately NOT rendered here. Triage is a keep/kill/fix
-  decision across N tasks; depth belongs to the output gate. This is a knowing
-  divergence from checkpoint-widget.html's two-column context grid, and it is
-  what keeps a five-task triage scannable.
-
-  P# BADGE / TYPE PILL — same keys as task-plan-widget.html and
-  checkpoint-widget.html (this is that card language, not a new visual system):
-    P1 amber (#FAEEDA/#633806) · P2 purple (#EEEDFE/#3C3489) · P3+ gray (#F1EFE8/#444441);
-    followup_email → blue (#E6F1FB/#0C447C); define-only types → gray + " · rep-owned".
-
-  EVIDENCE LINE — source-prefixed uppercase label + the quote in italics:
-    email citation → label "Evidence · email ({{SENDER}})"
-    call citation  → label "Evidence · call ({{CALL_TYPE}})"
-    An "inferred:" evidence marker is rendered AS-IS (never dressed as a
-    citation); keep it visually distinct — muted, not quote-italic.
-
-  CLIENT-SIDE STATE — a plain in-memory object keyed by task id, held on
-  `window['__triage_{{ITEM_KEY}}']` ({{ITEM_KEY}} = the worked item's slug, so
-  two triage surfaces in one scroll history never share state). A control-group
-  click writes ONE entry into that object and nothing else. NOTHING IS SENT
-  UNTIL SUBMIT. Cards start NEUTRAL — there is no pre-selected verdict, so an
-  untouched card is indistinguishable from a card the rep never saw, which is
-  exactly the intended semantics.
-
-  sendPrompt GRAMMAR (batch verdicts — see resources/tool-bindings.md
-  "sendPrompt grammar"; authored there and in the bindings, never in a skill):
-    Submit verdicts → sendPrompt('Verdicts for {{ITEM_NAME_FLATTENED}} — '
-                                 + '<id>: <verdict>' entries joined by '; ')
-    e.g.  Verdicts for Calla and Vale — t1: accept; t2: edit: combine with t3; t3: reject
-    - Entries are emitted in PRIORITY ORDER, driven by {{IDS_JSON}} (the ordered
-      id array), so the fan-out and its feedback-log line order are reproducible.
-    - An edit entry is `<id>: edit: <free text>`; the note runs to the next
-      '; ' or the end of the line.
-    - UNTOUCHED CARDS ARE OMITTED ENTIRELY — an omitted id is an omitted verdict.
-      An Edit card with an empty note is omitted too (same non-empty rule the
-      single-item edit input follows).
-    - SUBMIT IS INERT when no card carries a verdict — an empty submission sends
-      nothing at all.
-    - {{ID}} is the persisted task id (t1, t2, …) and is AUTHORITATIVE. Per-task
-      titles are deliberately OMITTED from the composed string: five titles
-      inline makes the line unreadable and adds no disambiguation the item name
-      and the ids do not already carry.
-    - {{ITEM_NAME_FLATTENED}}: the worked account/project name with `'`, `"`, and
-      `&`/punctuation flattened to words (the same rule as `Work <Name>`) — it is
-      what identifies a late click from a stale widget in scroll history.
-    - Note text is read from an input VALUE at click time, never baked into the
-      handler source, so quotes inside a note need no flattening.
-    - A click writes nothing (ADR-9) — the sent prompt IS the return-to-agent
-      turn, and hand-typing the same sentence is exactly equivalent.
-  ═══════════════════════════════════════════════════════════════════════════
+  ONE DELEGATED HANDLER on the card stack; per-card markup carries ZERO inline
+  JS — verdict buttons bear only data-task + data-verdict and no style of their
+  own (the sibling reset clears the whole attribute). It walks up from
+  event.target by parentNode — no newer ancestor-matching DOM API is assumed
+  here — and is INERT for a click carrying no data-verdict. No script element:
+  its execution here is unobserved, where inline handlers are proven. On a
+  verdict it records that verdict on window['__triage_{{ITEM_KEY}}'] (keyed by
+  item slug, so two triage surfaces never share state), resets the sibling
+  buttons' styling, applies the verdict's color trio (green accept / gray edit
+  / red reject), sets "Selected: <Verdict>", and shows+focuses the -note input
+  for edit / hides it otherwise.
 -->
 <div>
 <h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
-<!-- {{SR_DESCRIPTION}} names the task COUNT and the available actions for screen
-     readers, e.g. "Plan triage for Calla and Vale: three proposed tasks, each
-     with accept, edit, and reject actions, submitted together" -->
-<div style="display:flex; flex-direction:column; gap:10px;">
+<div style="display:flex;flex-direction:column;gap:10px;" onclick="var e=event.target,v;while(e&&e!==this){v=e.getAttribute&&e.getAttribute('data-verdict');if(v)break;e=e.parentNode;}if(!v)return;var C={accept:['green','#E3F3E5','#1E6B32','Accept'],edit:['gray','#F1EFE8','#444441','Edit'],reject:['red','#FBE7E6','#8A2A22','Reject']}[v];if(!C)return;var t=e.getAttribute('data-task'),g=e.parentNode.getElementsByTagName('button'),n=document.getElementById(t+'-note');(window['__triage_{{ITEM_KEY}}']=window['__triage_{{ITEM_KEY}}']||{})[t]=v;for(var i=0;i&lt;g.length;i++)g[i].removeAttribute('style');e.style.cssText='background:var(--c-'+C[0]+'-50,'+C[1]+');color:var(--c-'+C[0]+'-800,'+C[2]+');font-weight:600';document.getElementById(t+'-status').textContent='Selected: '+C[3];n.style.display=v==='edit'?'block':'none';if(v==='edit')n.focus();">
 
-<!--
-  TRIAGE CARD TEMPLATE — repeat one block per retained task, in priority order.
-  {{P_BADGE}} = "P1"/"P2"/…; badge colors per the P# key above ({{P_BG}}/{{P_FG}}
-  hex fallbacks pair with the priority). {{TYPE_LABEL}} = type with underscores →
-  spaces, plus " &middot; rep-owned" for define-only types. {{TITLE}} and
-  {{EVIDENCE_QUOTE}} are HTML-escaped (&amp;, &mdash;, …).
--->
-<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1rem 1.25rem;">
+<!-- CARD — repeat per retained task, in priority order. -->
+<div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;">
 
-  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
-    <span style="background:var(--c-{{P_COLOR}}-50,{{P_BG}}); color:var(--c-{{P_COLOR}}-800,{{P_FG}}); font-size:11px; font-weight:500; padding:2px 8px; border-radius:4px;">{{P_BADGE}}</span>
-    <span style="background:var(--c-{{TYPE_COLOR}}-50,{{TYPE_BG}}); color:var(--c-{{TYPE_COLOR}}-800,{{TYPE_FG}}); font-size:11px; font-weight:500; padding:2px 10px; border-radius:999px;">{{TYPE_LABEL}}</span>
-    <span style="font-weight:500; font-size:15px; margin-left:2px;">{{TITLE}}</span>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+    <span style="background:var(--c-{{P_COLOR}}-50,{{P_BG}});color:var(--c-{{P_COLOR}}-800,{{P_FG}});font-size:11px;font-weight:500;padding:2px 8px;border-radius:4px;">{{P_BADGE}}</span>
+    <span style="background:var(--c-{{TYPE_COLOR}}-50,{{TYPE_BG}});color:var(--c-{{TYPE_COLOR}}-800,{{TYPE_FG}});font-size:11px;font-weight:500;padding:2px 10px;border-radius:999px;">{{TYPE_LABEL}}</span>
+    <span style="font-weight:500;font-size:15px;margin-left:2px;">{{TITLE}}</span>
   </div>
 
-  <p style="font-size:13px; color:var(--text-secondary); margin:0 0 10px;">{{RATIONALE}}</p>
+  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 10px;">{{RATIONALE}}</p>
 
-  <div style="border-top:0.5px solid var(--border); padding-top:8px; margin-bottom:10px;">
-    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 4px;">Evidence &middot; {{SOURCE_KIND}} ({{SOURCE_DETAIL}})</p>
-    <!-- {{SOURCE_KIND}} ∈ email|call; {{SOURCE_DETAIL}} = sender for email, call_type for call -->
-    <p style="font-size:13px; color:var(--text-primary); margin:0; font-style:italic;">{{EVIDENCE_QUOTE}}</p>
+  <div style="border-top:0.5px solid var(--border);padding-top:8px;margin-bottom:10px;">
+    <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin:0 0 4px;">Evidence &middot; {{SOURCE_KIND}} ({{SOURCE_DETAIL}})</p>
+    <p style="font-size:13px;color:var(--text-primary);margin:0;font-style:italic;">{{EVIDENCE_QUOTE}}</p>
   </div>
 
-  <!-- CONTROL GROUP — neutral until clicked; the clicked button takes the accent
-       border so the card's own state is visible without a submit. -->
-  <div id="{{ID}}-controls" style="display:flex; gap:8px; flex-wrap:wrap;">
-    <button onclick="var V=window['__triage_{{ITEM_KEY}}']=window['__triage_{{ITEM_KEY}}']||{};V['{{ID}}']='accept';var g=document.getElementById('{{ID}}-controls').getElementsByTagName('button');for(var i=0;i&lt;g.length;i++){g[i].style.borderColor='';}this.style.borderColor='var(--border-strong)';document.getElementById('{{ID}}-note').style.display='none';">Accept</button>
-    <button onclick="var V=window['__triage_{{ITEM_KEY}}']=window['__triage_{{ITEM_KEY}}']||{};V['{{ID}}']='edit';var g=document.getElementById('{{ID}}-controls').getElementsByTagName('button');for(var i=0;i&lt;g.length;i++){g[i].style.borderColor='';}this.style.borderColor='var(--border-strong)';var n=document.getElementById('{{ID}}-note');n.style.display='block';n.focus();">Edit</button>
-    <button onclick="var V=window['__triage_{{ITEM_KEY}}']=window['__triage_{{ITEM_KEY}}']||{};V['{{ID}}']='reject';var g=document.getElementById('{{ID}}-controls').getElementsByTagName('button');for(var i=0;i&lt;g.length;i++){g[i].style.borderColor='';}this.style.borderColor='var(--border-strong)';document.getElementById('{{ID}}-note').style.display='none';">Reject</button>
+  <!-- CONTROLS — the handler's only targets; this parent is the reset scope. -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button data-task="{{ID}}" data-verdict="accept">Accept</button>
+    <button data-task="{{ID}}" data-verdict="edit">Edit</button>
+    <button data-task="{{ID}}" data-verdict="reject">Reject</button>
   </div>
-  <input id="{{ID}}-note" type="text" placeholder="What should change about this task?" style="display:none; width:100%; margin-top:8px; box-sizing:border-box;">
+  <p id="{{ID}}-status" style="font-size:12px;color:var(--text-muted);margin:6px 0 0;min-height:15px;"></p>
+  <input id="{{ID}}-note" type="text" placeholder="What should change about this task?" style="display:none;width:100%;margin-top:8px;box-sizing:border-box;">
 
 </div>
-<!-- / END TRIAGE CARD TEMPLATE -->
+<!-- / END CARD -->
 
-<!--
-  FOOTER — rendered ONCE, after the last card. {{IDS_JSON}} is the ordered id
-  array in priority order, e.g. ['t1','t2','t3']; it is what fixes the order of
-  the composed string (and therefore of the fan-out).
--->
-<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding-top:4px;">
-  <p style="font-size:12px; color:var(--text-muted); margin:0;">Cards you leave untouched record nothing.</p>
+<!-- FOOTER — ONCE, after the last card. -->
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:4px;">
+  <p style="font-size:12px;color:var(--text-muted);margin:0;">Cards you leave untouched record nothing.</p>
   <button onclick="var V=window['__triage_{{ITEM_KEY}}']||{};var ids={{IDS_JSON}};var p=[];for(var i=0;i&lt;ids.length;i++){var id=ids[i];var v=V[id];if(!v){continue;}if(v==='edit'){var n=document.getElementById(id+'-note').value;if(!n){continue;}p.push(id+': edit: '+n);}else{p.push(id+': '+v);}}if(p.length){sendPrompt('Verdicts for {{ITEM_NAME_FLATTENED}} — '+p.join('; '));}" style="border-color:var(--border-accent, var(--border-strong));">Submit verdicts</button>
 </div>
 

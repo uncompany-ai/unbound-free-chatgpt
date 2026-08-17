@@ -16,10 +16,10 @@
   bindings half, authored **before** this runtime's tool inventory has been observed — which is why its resolution
   column is honest about that, rather than guessed.
 - **Two states only: evidence-cited or UNRESOLVED.** A concrete resolution appears here only when a G0 gate or a live
-  inventory observation supports it; every other row is marked **UNRESOLVED**, naming the gate that settles it. As of
-  authoring, G0.1 and G0.2 have zero live observations, and this runtime's tool enumeration belongs to Epic 3's
-  `connect-tools` binding test gate — so no concrete ChatGPT tool name appears anywhere below, and none may be added
-  without its observation. Guessing a tool name into a row is the dated-documentation failure Epic 0 exists to prevent.
+  inventory observation supports it; every other row is marked **UNRESOLVED**, naming the gate that settles it. G0's
+  live observations record install and routing only — no tool inventory. That enumeration belongs to Epic 3's
+  `connect-tools` binding test gate, so no concrete ChatGPT tool name appears anywhere below, and none may be added
+  without its observation.
 
 ## Security posture (ADR-4)
 
@@ -64,22 +64,24 @@ capability as unavailable and takes the degradation path stated in its row.
 
 An inline render surface **was observed live in this runtime on 2026-08-12** (G1, story 3.1): the `visualize`
 skill — an instruction set the agent reads, not a callable tool — rendered a written HTML fragment inline via the
-write-then-reference protocol owned by `## Visualize protocol — write-then-reference` below. The rows below carry
-that observation where it covers them; per the resolution rule below, a surface that cannot be session-confirmed
-still resolves to its documented fallback — never assumed. The pinned template named in each
-row is the layout authority on a confirmed surface; layout minutiae live in the template, never in prose.
+write-then-reference protocol owned by `## Visualize protocol — write-then-reference` below. **BOUND (protocol)** in
+a row means exactly that observation: the beat composes per that protocol, instantiating the row's pinned template
+under its fragment-projection rules. Per the resolution rule below, a surface that cannot be session-confirmed still
+resolves to its documented fallback — never assumed. The pinned template named in each row is the layout authority
+on a confirmed surface; layout minutiae live in the template, never in prose.
 
 | Logical capability | Scope | Interactive surface (pinned template) | Fallback | Consumed by |
 | --- | --- | --- | --- | --- |
-| `render.tasks(task_view)` | render, no capture | **BOUND (protocol)** — observed 2026-08-12 (G1, story 3.1): composed per `## Visualize protocol — write-then-reference` below; card stack, one card per task, pinned to `resources/templates/task-plan-widget.html` under that section's fragment-projection rules | plain Markdown checklist in chat | `skills/pipeline/work-account.md` (re-render after SET-STATUS / APPLY-EDIT), `skills/standalone/collect-tasks.md` (roundup) |
+| `render.tasks(task_view)` | render, no capture | **BOUND (protocol)** — card stack, one card per task — `resources/templates/task-plan-widget.html` | plain Markdown checklist in chat | `skills/pipeline/work-account.md` (re-render after SET-STATUS / APPLY-EDIT), `skills/standalone/collect-tasks.md` (roundup) |
 | `review.collect(checkpoint_view)` | render/capture (local verdicts only) | **Stays on the typed fallback** — evidence-cited 2026-08-12 (G1, story 3.1): the observed `visualize` surface runs client-side JS but no channel from a rendered fragment back into the conversation has been observed, and this capability's whole value **is** capture — a card stack whose controls capture nothing invites clicks that silently mean nothing. Flips only on a later G1 observation of such a channel, its grammar recorded from observation, never designed in advance | in-chat `accept \| edit \| reject` prompt per item | `skills/run-unbound.md` (Step 3.5 batch triage + Step 3.5 material-edit re-confirm + Step 5 close-out open questions + qualification gaps) |
-| `render.slate(slate_view)` | render, no capture | **BOUND (protocol)** — observed 2026-08-12 (G1, story 3.1): composed per `## Visualize protocol — write-then-reference` below; card grid pinned to `resources/templates/slate-widget.html` under that section's fragment-projection rules; selection stays typed (the fallback's own rule) | plain annotated slate lines | `skills/pipeline/build-slate.md` Step 4 (via `run-unbound` Steps 2–3) |
-| `render.email_draft(draft_view)` | render/capture (the draft's own verdict) | **BOUND (protocol) — display half only** — observed 2026-08-12 (G1, story 3.1): mail-client preview composed per `## Visualize protocol — write-then-reference` below, pinned to `resources/templates/email-draft-widget.html`; the verdict footer is stripped by projection and the three verdicts are typed in chat (see `## render.email_draft`) | cited filename + draft body in chat, with the same three verdicts invited in chat | `skills/run-unbound.md` (Step 5 combined output gate) |
-| `render.crm_update(crm_view)` | render, no capture | **BOUND (protocol)** — observed 2026-08-12 (G1, story 3.1): composed per `## Visualize protocol — write-then-reference` below; informational CRM card pinned to `resources/templates/crm-update-widget.html` under that section's fragment-projection rules | plain in-chat "CRM Updates (simulated)" Markdown section | `skills/pipeline/write-crm.md` (APPLY) |
-| `render.connections(connections_view)` | render, no capture | **BOUND (protocol)** — observed 2026-08-12 (G1, story 3.1): composed per `## Visualize protocol — write-then-reference` below; capability status board pinned to `resources/templates/connections-widget.html` under that section's fragment-projection rules | plain Markdown capability table + verdict line in chat | `skills/standalone/connect-tools.md` (both entries) |
-| `render.setup_progress(progress_view)` | render, no capture | **BOUND (protocol)** — observed 2026-08-12 (G1, story 3.1): composed per `## Visualize protocol — write-then-reference` below; section checklist card pinned to `resources/templates/setup-progress-widget.html` under that section's fragment-projection rules | plain Markdown section-status list in chat | `skills/setup-unbound.md` (progress + resume + audit views) |
-| `render.context_preview(preview_view)` | render, no capture | **BOUND (protocol)** — observed 2026-08-12 (G1, story 3.1): composed per `## Visualize protocol — write-then-reference` below; formatted artifact preview pinned to `resources/templates/context-preview-widget.html` under that section's fragment-projection rules | plain Markdown artifact section in chat | `skills/setup-unbound.md` (section-loop previews) |
-| `render.source_intake(intake_view)` | render, no capture | **BOUND (protocol)** — observed 2026-08-12 (G1, story 3.1): composed per `## Visualize protocol — write-then-reference` below; source-catalog checklist card pinned to `resources/templates/source-intake-widget.html` under that section's fragment-projection rules | plain Markdown item-status list in chat | `skills/setup-unbound.md` (step-2 intake, re-rendered after each answer) |
+| `render.slate(slate_view)` | render, no capture | **BOUND (protocol)** — card grid — `resources/templates/slate-widget.html`; selection stays typed (the fallback's own rule) | plain annotated slate lines | `skills/pipeline/build-slate.md` Step 4 (via `run-unbound` Steps 2–3) |
+| `render.email_draft(draft_view)` | render/capture (the draft's own verdict) | **BOUND (protocol) — display half only** — mail-client preview — `resources/templates/email-draft-widget.html`; the verdict footer is stripped by projection and the three verdicts are typed in chat (see `## render.email_draft`) | cited filename + draft body in chat, with the same three verdicts invited in chat | `skills/handlers/draft-followup.md`, at the EXECUTE TASKS artifact-verdict gate (`triage-and-execute.md` Step 4) |
+| `render.artifact(artifact_view)` | render/capture (the artifact's own verdict) | **BOUND (protocol) — display half only** — generic artifact preview — `resources/templates/artifact-widget.html`; the verdict footer is stripped by projection and the three verdicts are typed in chat (see `## render.artifact`) | cited filename + `body_blocks[]` content in chat, with the same three verdicts invited in chat | any `execute` handler per `task-registry.md` Part B's Output-edit obligation (default render capability) |
+| `render.crm_update(crm_view)` | render, no capture | **BOUND (protocol)** — informational CRM card — `resources/templates/crm-update-widget.html` | plain in-chat "CRM Updates (simulated)" Markdown section | `skills/pipeline/write-crm.md` (APPLY) |
+| `render.connections(connections_view)` | render, no capture | **BOUND (protocol)** — capability status board — `resources/templates/connections-widget.html` | plain Markdown capability table + verdict line in chat | `skills/standalone/connect-tools.md` (both entries) |
+| `render.setup_progress(progress_view)` | render, no capture | **BOUND (protocol)** — section checklist card — `resources/templates/setup-progress-widget.html` | plain Markdown section-status list in chat | `skills/setup-unbound.md` (progress + resume + audit views) |
+| `render.context_preview(preview_view)` | render, no capture | **BOUND (protocol)** — formatted artifact preview — `resources/templates/context-preview-widget.html` | plain Markdown artifact section in chat | `skills/setup-unbound.md` (section-loop previews) |
+| `render.source_intake(intake_view)` | render, no capture | **BOUND (protocol)** — source-catalog checklist card — `resources/templates/source-intake-widget.html` | plain Markdown item-status list in chat | `skills/setup-unbound.md` (step-2 intake, re-rendered after each answer) |
 
 ## API contract — logical capability signatures (stable across runtimes)
 
@@ -112,6 +114,7 @@ render.tasks(task_view)         -> interactive_checklist | markdown_checklist   
 review.collect(checkpoint_view) -> verdicts                                     # render/capture; verdicts route to capture-feedback
 render.slate(slate_view)        -> slate_cards | annotated_lines                 # render; interactive card grid, fallback = plain annotated slate lines
 render.email_draft(draft_view)  -> { preview, item_verdict }                     # render/capture; interactive mail-client preview + verdict footer, fallback = cited filename + body in chat with the verdict invited in chat
+render.artifact(artifact_view)  -> { preview, item_verdict }                     # render/capture; generic artifact preview + verdict footer, fallback = cited filename + body_blocks[] in chat with the verdict invited in chat
 render.crm_update(crm_view)     -> crm_card | markdown_block                     # render; informational CRM-update card, fallback = plain in-chat "CRM Updates (simulated)" Markdown section
 render.connections(connections_view) -> connections_board | markdown_table       # render, no capture
 render.setup_progress(progress_view) -> progress_card | markdown_list            # render, no capture
@@ -156,7 +159,9 @@ The render path observed live 2026-08-12 (G1, story 3.1). This runtime's inline 
    once; those instructions are the syntax authority for everything below.
 2. **Write** the HTML fragment to disk at the location the instructions specify (observed:
    `~/.codex/visualizations/YYYY/MM/DD/<uuid>/<name>.html`), instantiated from the row's pinned template under the
-   fragment-projection rules below.
+   fragment-projection rules below. For `render.slate` that instantiation is **helper-first**: the bundled helper's
+   `render` command for this surface returns the fragment already projected under those same rules; hand instantiation
+   is the **availability** fallback. The rules below stay normative — the helper implements them.
 3. **Emit the content reference exactly as the instructions specify** — plain assistant text in the message, never
    a tool call and never a file write. This file records no reference syntax of its own: the live instructions own
    it, so a host-side syntax change degrades to fallback at the session probe instead of emitting a broken
@@ -246,7 +251,8 @@ the recency clause entirely. The muted subtitle reads `<Humanized stage> · <Hum
 part is known, or the humanized namespace singular (`Account` / `Project`) when neither is. Selection is the rep's
 turn — on the fallback surface the rep types the item's name; the match is case-insensitive and ambiguity → ask.
 `render.slate` causes no write of any kind. An **empty slate renders no widget** (the existing "empty slate" chat
-line stands); the `dropped` set is **never** widget-rendered (inspect-on-request stays chat-based).
+line stands); the `dropped` set is **never** widget-rendered (inspect-on-request stays chat-based). The written fragment
+is helper-first per `## Visualize protocol — write-then-reference` step 2.
 
 ## render.email_draft
 
@@ -267,6 +273,31 @@ conversation has been observed — see the binding table row), so the preview re
 verdicts are invited in chat. The "one surface" rule holds — the fragment plus its accompanying chat turn **is**
 the surface, and no separate checkpoint card follows it. Each applied-edit cycle re-renders by emitting a fresh
 fragment.
+
+## render.artifact
+
+`artifact_view = { kind, title, filename, body_blocks[], source_task }`, read from the artifact file the handler
+already wrote under the item's `drafts/` — nothing is regenerated or altered at render time. `kind` is a short label
+naming the artifact type for card framing only, never a dispatch key; `body_blocks[]` is the artifact's content,
+chunked for display — **shaped like itself**, the same principle `render.context_preview`'s `drafted_content`
+already states. **Render/capture:** the surface carries the artifact plus its verdict — Accept / Reject / free-text
+edit — and returns `item_verdict = { task_id, verdict ∈ {accept|edit|reject}, note }`, where `task_id` is
+`source_task`. The artifact and the decision on it are **one surface**; no separate checkpoint card follows it. On
+the fallback the cited filename and `body_blocks[]` content appear in chat with the same three verdicts invited
+there. The boundary holds on every surface: nothing is applied, sent, or renamed, and the artifact is stated as
+`draft · not applied`. An **`edit` verdict is applied**, not merely recorded: the handler's own
+`apply-<artifact>-edit(namespace, slug, source_task, note)` rewrites the artifact file — bounded to the fields the
+handler's own content contract declares — **first**, appends exactly one `edit` line via `capture-feedback` **only**
+on success, and re-renders through this capability so a fresh verdict is collected. The cycle repeats until accept or
+abandon; one log line per cycle, append-only, rep-bounded. Silence after a re-render writes nothing. This capability
+adds **no** writer: the artifact file is one its own handler already owns. **On this runtime's bound surface the
+verdict stays typed:** the fragment projection strips the verdict footer (no channel from a rendered fragment back
+into the conversation has been observed — see the binding table row), so the preview renders inline and the same
+three verdicts are invited in chat. The "one surface" rule holds — the fragment plus its accompanying chat turn
+**is** the surface, and no separate checkpoint card follows it. Each applied-edit cycle re-renders by emitting a
+fresh fragment. `render.artifact` is the **default** render capability every `execute` handler inherits per
+`task-registry.md` Part B's Output-edit obligation; a handler naming a more specific capability (`draft-followup`
+keeps `render.email_draft`) uses that one instead.
 
 ## render.crm_update
 
@@ -302,7 +333,7 @@ enumeration records observations**, the honest board reports every external read
 the consequence — that verdict is the truth about an unenumerated runtime, not a defect. **Render-only, conveys
 nothing back:** binding-change verdicts flow through `review.collect` items of kind `binding_change`, never through
 this surface. For a declared write-scoped row, `tool` reports live inventory presence independently of the status:
-a present tool with missing replay/receipt evidence renders `degraded` with production writes disabled and close-out
+a present tool with no recorded eligibility path renders `degraded` with production writes disabled and close-out
 simulated; `connected` is reserved for a positively confirmed, production-eligible mapping.
 
 ## render.setup_progress
@@ -372,6 +403,7 @@ answers are given in chat, and this surface produces no `review.collect` item of
   provider or tool names. Unchanged in force for this runtime.
 - **Write boundary.** Every future provider row is read-scope only; no transcript source acquires a write scope by
   appearing in the inventory (ADR-4).
+
 
 ## Out of scope (do NOT add here)
 

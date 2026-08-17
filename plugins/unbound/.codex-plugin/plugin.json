@@ -1,11 +1,11 @@
 {
   "name": "unbound",
-  "version": "1.4.0",
-  "description": "File-native sales-execution agent for ChatGPT Work — freemium tier: the run-unbound daily orchestrator plus the standalone setup-unbound, connect-tools and collect-tasks skills. A subtractive cut of the base with pro-only features removed.",
+  "version": "2.1.0",
+  "description": "Your sales playbook, drafted after every call. You approve what happens next.",
   "skills": "./skills/",
   "apps": "./.app.json",
   "author": {
-    "name": "UnCompany",
+    "name": "Uncompany",
     "url": "https://github.com/uncompany-ai/unbound"
   },
   "license": "Proprietary",
@@ -16,10 +16,10 @@
     "unbound"
   ],
   "interface": {
-    "displayName": "Unbound (Free)",
-    "shortDescription": "File-native sales-execution agent: run the daily loop, draft the follow-up, keep the record.",
-    "longDescription": "The free cut of Unbound: the run-unbound daily orchestrator plus the standalone setup-unbound, connect-tools and collect-tasks skills. A subtractive cut of the base with pro-only features removed. The rep works one account or project at a time and nothing is sent without their approval.",
-    "developerName": "UnCompany",
+    "displayName": "Unbound",
+    "shortDescription": "Your sales playbook, drafted after every call. You approve what happens next.",
+    "longDescription": "Unbound — from Uncompany is a self-serve preview of a sales playbook in motion. It turns calls and unanswered emails into grounded drafts for a rep to review. Unbound is the preview; the install is the product. The rep selects the work and approves every exact external payload — nothing is sent on its own.",
+    "developerName": "Uncompany",
     "category": "Productivity",
     "capabilities": [
       "Interactive"
@@ -27,10 +27,14 @@
     "websiteURL": "https://github.com/uncompany-ai/unbound",
     "privacyPolicyURL": "https://github.com/uncompany-ai/unbound#privacy",
     "termsOfServiceURL": "https://github.com/uncompany-ai/unbound#terms",
-    "brandColor": "#2F6F4E",
+    "brandColor": "#0E0F12",
     "composerIcon": "./assets/icon.png",
     "logo": "./assets/icon.png",
-    "screenshots": [],
+    "screenshots": [
+      "./assets/screenshots/01-signal-queued.png",
+      "./assets/screenshots/02-draft-ready.png",
+      "./assets/screenshots/03-failure-surfaced.png"
+    ],
     "defaultPrompt": [
       "Run Unbound for today's calls and unanswered emails",
       "Set up Unbound with my company context",
