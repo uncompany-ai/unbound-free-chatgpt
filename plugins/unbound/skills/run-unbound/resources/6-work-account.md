@@ -10,7 +10,7 @@ item, with one argument `selected_item` (`{ namespace, slug, context_ref, eviden
 Turns that item into a short, ruthlessly prioritized, evidence-grounded task list; then persists it,
 enriches the item's context, and records the item's in-flight cycle. Also authors the shared rep-driven
 procedures — `capture-feedback`, verdict capture, dropped-set inspection, promotion, SET-STATUS,
-APPLY-EDIT (Steps 10–15) — plus the loop-invoked ADVANCE-PHASE, MARK-HANDLED, and
+APPLY-EDIT and CANCEL-TASK (Steps 10–15.5) — plus the loop-invoked ADVANCE-PHASE, MARK-HANDLED, and
 CAPTURE-QUALIFICATION procedures (Steps 16–18).
 
 ## Reads
@@ -61,7 +61,9 @@ schema (below):
 - Emit **all** sound candidates here — the 80/20 cut is Step 3's job, not this step's.
 - Cite as you go: ground every task in some evidence entry or in `context.md`.
 - Where an action is sound but un-cited, set `evidence` to the `inferred: <reasoning>` marker (see Invariants).
+- **The item's own workspace state grounds a candidate too.** Where an action's precondition is satisfied by an artifact that is, or is not, on file under the item's `drafts/`, that state alone makes it a sound candidate. Ground it on the state Step 1 already loaded, not on an ask; no evidence entry is owed, and its absence from the evidence is not a reason to withhold it.
 - Type each candidate from the canonical type set in `task-registry.md` (Part A) — the registry is the type authority — honoring each row's `when` precondition, which states when that type is the right typing for an observed action. Where two rows' preconditions both fit and neither settles it, type the likelier candidate and name the competing type in that task's `rationale` (Step 4), so the rep meets the tie at triage; never resolve a sibling tie silently.
+- **A `when` precondition can also name the item's workspace state, and that half is checkable.** An evidence clause — what was said or written — is typing guidance exactly as above. A **state clause** — an artifact that must, or must not, already be on file under the item's `drafts/` — resolves against the listing Step 1 already loaded, so it costs no read; when it is false, this row is not the right typing for this action. Where the false clause required the artifact to be **present**, that artifact is a missing prerequisite: find the type whose row creates what is missing and whose own `when` holds, and emit **both** it and the dependent into this same plan. Emit **one** enabling task per missing artifact whatever route it took in — never a second beside a carry-in that already creates it. Where no row creates it, emit neither under that type; Step 3 takes the drop. Emitting a dependent whose prerequisite is missing is the dangerous failure here: it spends the rep's approval on work that cannot be built. Where no `drafts/` listing loaded, no state clause resolves — emit nothing un-enabled, invent no enabler, and surface the gap.
 - A sound action that fits no registry type is emitted as `internal`, never as an invented type.
 - Admit the prior cycle's unfinished work as candidates **alongside** the evidence-derived ones: classify every task in the prior plan through the carry matrix below and emit the ones it carries.
 - A carried candidate is a **re-presentation, not a re-synthesis**: nothing about it is re-derived here, and Step 4 copies its fields rather than authoring them.
@@ -76,20 +78,20 @@ three signals and nothing else: the rep-owned `status`, the loop-owned `handled_
 | # | Prior task state | Outcome |
 | --- | --- | --- |
 | 1 | `status: done` | **Drop.** The rep declared it finished; never carried. |
-| 2 | standing verdict `reject` | **Drop.** A reject is durable — re-proposing it is nagging. |
-| 3 | `status: deferred` | **Suppress:** one `dropped[]` entry reading `carried, deferred by rep on <date>`; never a plan card, and recoverable via PROMOTE (Step 13). |
+| 2 | standing verdict `cancel` **or** `reject` + **no `handled_on`** | **Drop.** Either is a deliberate removal of the task, and a deliberate removal is durable — re-proposing it is nagging. Both also normally cannot match, because CANCEL-TASK already moved the task out of `tasks[]` on either word; the row stands as the guard for a hand-edited file that put it back. **The `handled_on` test is load-bearing here, not decoration:** without it this row would swallow an *artifact* `reject` — a draft the rep turned down on a task whose turn was already spent — and drop a task that must instead carry as a reminder at row 4. |
+| 3 | `status: deferred` | **Suppress:** one `dropped[]` entry reading `carried, deferred by rep on <date>`; never a plan card, and recoverable via PROMOTE (Step 13). This is the **rep-declared status**, set by SET-STATUS — never the triage `defer` verdict, which leaves `status: not-done` alone and lands at row 5. |
 | 4 | `handled_on` set + `status: not-done` | **A reminder line only, never a task** — the loop already spent this task's turn (wording rule below). |
-| 5 | standing `accept` (or accept-after-edit) + no `handled_on` + `status: not-done` | **Carry as a task.** The rep took it on and it is not finished. |
+| 5 | standing `accept`, `execute` or `defer` (any of them after an edit) + no `handled_on` + `status: not-done` | **Carry as a task.** The rep kept it and it is not finished — an `accept` at the plan gate whose turn never came, an `execute` whose dispatch never came, or a `defer` they said they would do themselves. |
 | 6 | no standing verdict + no `handled_on` | **Carry as a task.** Silence is not a verdict: it still means never handled, and now also means never lost. |
 
 - Rows 1 and 2 are the only drops; row 3 is the only write to `dropped[]`; rows 5 and 6 are the only rows that produce a plan card; row 4 produces prose and nothing else.
-- Two ordering rules carry the matrix. A task that is both `done` and `reject`ed resolves at **row 1** — the rep finished it whatever they said at triage. And `handled_on` is tested **before** the verdict rows, because the loop having spent the turn is the stronger fact.
+- Two ordering rules carry the matrix. A task that is both `done` and `cancel`led resolves at **row 1** — the rep finished it whatever they said at triage. And `handled_on` is tested **before** the verdict rows, because the loop having spent the turn is the stronger fact. That ordering is also **the whole of what keeps a plan `accept` and an artifact `accept` apart** on one `task_id`, which is why no `scope` field exists on `feedback-log.jsonl`: an artifact verdict is only ever reachable once the handler ran, and the handler running always sets `handled_on` — so an artifact `accept` **or `reject`** resolves at row 4, while an `accept` still standing with **no** marker is unambiguously the plan verdict and falls to row 5. Row 2 carries the same `handled_on` guard **in the row itself** rather than leaning on this note, because it now names `reject` — a word the artifact gate writes — and a row that sits above row 4 must not depend on a sentence below the table to stay correct.
 - The matrix names **no task type and consults no registry field** — not even `mode`. Row 4 can only ever match an `execute` type **by construction**: `run-unbound`'s task-execution loop and MARK-HANDLED (d) both forbid writing `handled_on` for a `define-only` task, so a `mode` test would be redundant.
-  - Row 5 therefore covers **both** rep-owned `define-only` work **and** an `execute` task whose turn never came — an interrupted walk, or a surfaced ADVANCE-PHASE failure the session continued past (Step 16(e)). A `mode`-aware row 4 would leave that state matching no row at all.
+  - Row 5 therefore covers **both** rep-owned `define-only` work **and** a kept executable task whose turn never came — an interrupted walk, silence at the task gate, or a surfaced ADVANCE-PHASE failure the session continued past (Step 16(e)). A `mode`-aware row 4 would leave that state matching no row at all. Listing `accept` beside `execute` there is also what makes the row **migration-free**: a log written before the task gate existed carries `execute` where one written after carries `accept`, and both land on row 5 unchanged.
   - A client pack flipping a type from `define-only` to `execute` therefore changes nothing about carry behavior.
 - **Row 4's reminder never asserts an artifact.** `handled_on` is set for a clean handler no-op too (see the schema below), so the line is phrased from the marker: it states that the task took its turn on `<date>`.
   - Name an artifact filename **only** where Step 1's `drafts/` listing attributes a file to that task unambiguously — a draft dated `handled_on` that no other task's turn also claims. A clean no-op names none, and so does an ambiguous listing.
-  - Emit **no** in-memory task for row 4 and render nothing: hand the reminder's content back with the plan for `run-unbound`'s recap to state. A card would invite an accept that re-drafts, which is what row 4 exists to prevent.
+  - Emit **no** in-memory task for row 4 and render nothing: hand the reminder's content back with the plan for `run-unbound`'s recap to state. A card would invite an execute that re-drafts, which is what row 4 exists to prevent.
 - A prior file that parses but resolves no standing verdicts is not a degradation: every task falls to row 6 and carries, which is the conservative direction. An absent, empty, or unparseable file is (see Invariants — failure handling).
 
 **3 — PRIORITIZE (80/20).** Reduce the candidates to the few highest-leverage actions:
@@ -98,11 +100,12 @@ three signals and nothing else: the rep-owned `status`, the loop-owned `handled_
 - Record **every** suppressed candidate in `dropped[]` with a brief reason.
 - Partition exhaustively: each candidate lands in exactly one of `tasks`/`dropped` — never silently drop.
 - Over-suppression is the dangerous failure: when genuinely unsure an action is critical, keep it in `tasks`; anything cut must appear in `dropped`.
-- A **carry-in bypasses the cut** and always lands in `tasks[]`. It survived this cut once already and the rep accepted it; and because `dropped[]` is never volunteered (Step 12), re-cutting it would discard it invisibly — recreating the loss the carry matrix exists to close.
+- A **carry-in bypasses the cut** and always lands in `tasks[]`. It survived this cut once already and the rep took it on; and because `dropped[]` is never volunteered (Step 12), re-cutting it would discard it invisibly — recreating the loss the carry matrix exists to close.
   - The cut still governs every evidence-derived candidate exactly as above, and the exhaustive partition holds: a carry-in lands in `tasks`, so it is still in exactly one place.
   - A row-3 carried-deferred entry joins `dropped[]` here carrying the reason the matrix gave it; it is never a candidate for `tasks`.
-  - The cost is plan size and the bound is the rep's own verdict, not a cap: every carried card states its carry count on its `evidence` line and meets triage like anything else, where a `reject` kills it permanently via row 2.
-  - Recorded alternative, deferred rather than rejected: carry-ins go through the cut and a cut carry-in is named in the recap instead of filed silently. Revisit after the first account worked across several cycles.
+  - The cost is plan size and the bound is the rep's own verdict, not a cap: every carried card states its carry count on its `evidence` line and meets triage like anything else, where a `cancel` takes it off the list and row 2 keeps it off.
+- A **state-derived candidate is judged on its state, not on its evidence.** Where a candidate's precondition is satisfied by the item's own state alone, the cut asks only whether that state still holds; evidence weight is not a ranking signal for it, and its absence from the evidence is not a reason to drop it. Such candidates carry no evidence by construction, so ranking them by evidence weight suppresses exactly the class of work no one thinks to ask for. The exhaustive partition is unchanged: a retained state-derived candidate lands in `tasks`, and one whose state no longer holds lands in `dropped` with that as its reason.
+- **A candidate blocked on a missing prerequisite is dropped, never emitted un-enabled.** Where Step 2 found no row creating the missing artifact, the candidate lands in `dropped[]` naming that artifact as the reason and nothing under that type lands in `tasks` — the exhaustive partition is unchanged, it is still in exactly one place. Where Step 2 did find the enabling type, both tasks are ranked here and the enabler ranks strictly above what it enables (see Invariants — mutation boundaries), whatever route each took into `tasks[]`: fresh, carried, or promoted.
 - Retained tasks keep their Step 2 fields unchanged.
 
 **4 — RATIONALE + EVIDENCE + CONTEXT.** Annotate **only** the retained tasks — leave `dropped`
@@ -111,6 +114,7 @@ alone; add, remove, re-rank nothing. For each retained task, finalize:
 - A non-empty, stage-aware `rationale` tying the action to the deal stage / next milestone per `company/process.md` — specific to this item, not boilerplate.
   - For a project, ground the rationale on the project's context + next milestone; never invent a stage.
   - Where Step 2 left a sibling tie unresolved — two registry rows' `when` preconditions both fit and neither settled the typing — the rationale also names the competing type, so the tie reaches the rep on the triage card instead of being resolved silently. No new field: the clause rides in `rationale`, which is required, non-empty, and rep-mutable.
+  - An **enabling task** says plainly that it unblocks the task ranked below it, so the rep does not meet an unexplained card at triage.
 - A non-empty `evidence` value — a source-prefixed citation or the literal `inferred: <reasoning>` marker, cross-checked per the citation discipline (see Invariants).
 - A **carried** task is finalized by copying, never by re-deriving: take `title`, `type`, `rationale` and `context` from the prior task **verbatim**, and give it a **fresh** `t<n>` in this plan.
   - Its `evidence` reads `carried from <plan_date> (<task_id>, <n>th carry) · <original evidence value verbatim>` — the prior value survives whole after the separator, source-kind prefix and all.
@@ -231,7 +235,7 @@ flipped:
 - At most **one** record per `(namespace, slug)`: an explicit rep restart **rewrites** the existing record — fresh `plan_date`, `started_at` and `event_ids`, back at `phase: planned` — rather than adding a second.
 - An empty or absent `event_ids[]` writes nothing: say so plainly rather than recording a cycle no event grounds.
 - Leave `last_run`, `timezone`, and every event record untouched.
-- Narrate the terminal transition (tasks draft written, log appended, frontmatter refreshed, the cycle recorded with its events still `pending` until close-out) and hand back to `run-unbound` — including the in-memory `crm_update` object for `write-crm` to apply at close-out. The "CRM update written" narration moves to `write-crm`.
+- Narrate the terminal transition (tasks draft written, log appended, frontmatter refreshed, the cycle recorded with its events still `pending` until close-out) and hand back to `run-unbound`. No `crm_update` object exists yet — the close-out beat derives it by invoking Step 6.5, after plan triage. The "CRM update written" narration moves to `write-crm`.
 
 **10 — capture-feedback (shared procedure).** Authored here once; reused by name (never
 re-authored) by `draft-followup` and `run-unbound`. Records **one** verdict:
@@ -241,19 +245,20 @@ to `state/feedback-log.jsonl`:
 - Build the object `{ts, namespace, slug, task_id, verdict, note}` and **serialize it** — never hand-concatenate a string.
 - `ts` = ISO 8601 with offset in the run's timezone (same format as `run-state.yaml`'s `last_run`).
 - `namespace`/`slug`/`task_id` are the join key; `task_id` is a task's `t<n>` or a draft's `source_task`.
-- `verdict` is exactly one of `accept | edit | reject` — normalize natural language ("looks good" → accept, "tighten the ask" → edit with the request in `note`, "drop it" → reject).
+- `verdict` is exactly one of **four scoped sets**, chosen by the gate that is calling: `accept | reject | edit` on a **plan** (the batch list gate — is this the right task?); `execute | defer | cancel | edit` on a **task** (its own turn, before dispatch); `accept | edit | reject` on an **artifact** (a draft's `source_task` — the handler's own output gate); and `accept | edit | reject` on a setup-time **context section**. The sets never mix: a verdict from the wrong one is an out-of-enum write. Normalize natural language against the caller's own set — "keep it" → accept, "not a real task"/"drop it from the list" → reject, "run it" → execute, "later"/"I'll do it myself" → defer, "drop it" → cancel, "looks good" → accept, "tighten the ask" → edit with the request in `note`.
 - A reply that can't be confidently mapped → ask rather than write an out-of-enum value.
 - `note` is the rep's text verbatim or `""` — always present.
 - Create the file on the first verdict; append-only thereafter — one verdict = one line; a changed mind is a new line, never a rewrite.
-- **Verdicts arriving together append together.** When one rep submission carries several `accept`/`reject` verdicts — `run-unbound`'s Step 3.5 triage fan-out — build, validate, and serialize each line exactly as above, then append them all in **one** write, in the fan-out's priority order. One verdict = one line is about the log's shape, never the write count: a single append carrying five lines satisfies it identically, and the latest-line-per-`task_id` read rule is untouched. `edit` verdicts never join the batch — each `edit` line appends individually, and only after its plan-file or draft-file rewrite succeeded (the APPLY-EDIT / APPLY-DRAFT-EDIT ordering).
+- **Verdicts arriving together append together.** When one rep submission carries several `execute`/`defer`/`cancel` verdicts — `run-unbound`'s Step 3.5 triage fan-out — build, validate, and serialize each line exactly as above, then append them all in **one** write, in the fan-out's priority order. One verdict = one line is about the log's shape, never the write count: a single append carrying five lines satisfies it identically, and the latest-line-per-`task_id` read rule is untouched. **Verdicts that rewrite a file first never join the batch** — each `edit` and each `cancel` line appends individually, and only after its plan-file or draft-file rewrite succeeded (the APPLY-EDIT / CANCEL-TASK / APPLY-DRAFT-EDIT ordering). A mixed submission therefore appends `execute` and `defer` together in one write, then each `edit` and `cancel` behind its own rewrite, still in priority order.
 - Its only effect is the local append — no external action. On write failure the caller surfaces it in chat.
 
 **11 — TASK VERDICT CAPTURE.** Runs only when the rep actually reacts to a presented task:
 
 - Tie the reply to a presented task by its `t<n>` — ask if ambiguous.
 - Normalize the reply to the verdict enum.
-- For `accept`/`reject`: call `capture-feedback` once per verdict.
-- For a task `edit`: route through APPLY-EDIT (Step 15) — the plan-file write happens first; the one `edit` line is logged only after it succeeds.
+- For a plan `accept` and for `execute`/`defer`: call `capture-feedback` once per verdict; none of the three touches the plan file. A plan `accept` keeps the task and decides nothing further — what "kept" then means is the registry `mode`'s to settle. `defer` is not a status write — the task already carries `status: not-done` and keeps it, which is why it carries into the next cycle as a live card rather than being suppressed. The rep-declared `deferred` status is SET-STATUS's and means something else (see it).
+- For a task `cancel` **and for a plan `reject`**: route through CANCEL-TASK (Step 15.5), passing that verdict word — the plan-file rewrite happens first; the one `cancel` or `reject` line is logged only after it succeeds. Both remove the task the same way and differ only in the reason CANCEL-TASK stamps.
+- For an `edit` at either gate: route through APPLY-EDIT (Step 15) — the plan-file write happens first; the one `edit` line is logged only after it succeeds. Scope changes nothing here: an edit revises the task either way.
 - Confirm tersely.
 - Never re-rank or re-suppress `tasks`/`dropped`; the only mutation path is APPLY-EDIT's bounded field set.
 
@@ -266,12 +271,13 @@ suppressed", ...):
 **13 — PROMOTE-A-DROPPED-ITEM.** Runs only on a rep promotion request, in this exact order:
 
 - (a) tie it to a real `dropped[]` entry (ask if ambiguous).
-- (b) build a promoted task at the **next free `t<n>`**: `type` inferred (default `internal`); `priority` a sensible rank without re-ranking others; `rationale` = the rep's reason; `evidence` = the honest provenance "Promoted from dropped by rep on `<date>`" (never a fabricated citation); `proposed_action` as implied (default `none`); `context` holding only what the rep stated; `status: not-done`.
+- (b) build a promoted task at the **next free `t<n>`**: `type` inferred (default `internal`); `priority` the rank the rep asked for, defaulting to the next rank after the current lowest when they named no position; `rationale` = the rep's reason; `evidence` = the honest provenance "Promoted from dropped by rep on `<date>`" (never a fabricated citation); `proposed_action` as implied (default `none`); `context` holding only what the rep stated; `status: not-done`.
+- (b2) **make that rank free by shifting, never by sharing it.** Every task already in `tasks[]` whose `priority` is at or below the promoted task's rank moves down by exactly one; ranks above it are untouched, `dropped[]` has no rank to move, and no `id` is renumbered. The shift is mechanical, not a rep edit: it rides inside (d)'s single rewrite and adds **no** line to `feedback-log.jsonl` — (e)'s one `edit` line for the promoted task is still the only one logged.
 - (c) move it into `tasks[]` and remove it from `dropped[]`.
 - (d) **rewrite the local `drafts/YYYY-MM-DD-tasks.yaml` FIRST** — if that write fails, report it and do **not** log the edit.
 - (e) **only then** append exactly one `edit` via `capture-feedback(namespace, slug, task_id=<new t<n>>, verdict="edit", note="promoted from dropped: '<entry>' - <rep reason>")`.
 - (f) announce + confirm tersely.
-- No other task is re-ranked.
+- PROMOTE is the corpus's **only** rank-shifting write, and (b2) is its whole extent: the rank field of the tasks at or below the insert point, nothing else. Every other no-re-ranking rule in this file and elsewhere stands unqualified.
 - Clause (b)'s value and Step 4's `carried from <plan_date> …` form are one convention, not two exceptions: both state honest provenance in place of a citation the task never earned, and the citation discipline admits both (see Invariants).
 
 **14 — SET-STATUS** `set-status(namespace, slug, task_id, new_status)`. The rep-driven, reusable
@@ -293,10 +299,22 @@ order:
 
 - (a) tie the edit to a real task by `id` in the item's **latest-dated** `drafts/*-tasks.yaml` (the same authority rule as SET-STATUS); ask if ambiguous; on an unknown id say so honestly and write nothing — never invent or renumber.
 - (b) bound the edit to the **rep-mutable annotation fields only** — `title`, `rationale`, `context` (field-level merge: only the fields the rep actually changed); `id`, `type`, `priority`, `evidence`, `proposed_action`, and `status` are out of scope.
-  - A type change is a reject + a new/promoted task; a rank change is a re-prioritization ask; status is SET-STATUS's; a factual correction touching `evidence` is surfaced and held for the rep, never silently rewritten.
+  - A type change is a cancel + a new/promoted task; a rank change is a re-prioritization ask; status is SET-STATUS's; a factual correction touching `evidence` is surfaced and held for the rep, never silently rewritten.
 - (c) **rewrite the local plan file FIRST** as valid pure YAML, every other task and field byte-unchanged — if that write fails, report it and do **not** log the edit.
 - (d) **only then** append exactly one `edit` line via `capture-feedback(namespace, slug, task_id, verdict="edit", note=<the rep's text verbatim>)`.
 - (e) re-present the revised task tersely (re-render via `render.tasks` where active) and confirm.
+- Its only writes are the one plan-file rewrite and the one log line — never an external action, never executed content.
+
+**15.5 — CANCEL-TASK (shared procedure).** Authored here once; reused by name (never re-authored)
+by `run-unbound`'s plan-triage fan-out (once per rejected task), by its task gate (once per
+cancelled task), and by any later rep cancel request. Applies **one** rep removal verdict via
+`cancel-task(namespace, slug, task_id, note, verdict="cancel")`, in this exact order:
+
+- (a) tie the cancel to a real task by `id` in the item's **latest-dated** `drafts/*-tasks.yaml` — the same authority rule APPLY-EDIT (a) and SET-STATUS (c) already state; ask if ambiguous; on an unknown id say so honestly and write nothing.
+- (b) **rewrite the local plan file FIRST** as valid pure YAML: move the whole task **out of `tasks[]` and into `dropped[]`**, its `dropped[]` entry reading **`<reason> by rep on <date>`** — the caller's verdict in the past tense, so `cancelled` when the task gate calls and `rejected` when the plan gate does. The rep's `note`, where they gave one, is appended verbatim after that reason in both cases. Every other task and field is byte-unchanged; no task is re-ranked and no id is renumbered or reused. If that write fails, report it and do **not** log the verdict.
+- (c) **only then** append exactly one line carrying that same verdict word via `capture-feedback(namespace, slug, task_id, verdict=<the caller's word>, note=<the rep's text verbatim, or "">)` — `cancel` from the task gate, `reject` from the plan gate, matching (b)'s reason exactly.
+- (d) confirm tersely, naming the task and stating it is off the list.
+- The removal is **recoverable, not destroyed**: the entry sits in `dropped[]` like any suppressed candidate, so DROPPED-SET INSPECTION (Step 12) surfaces it and PROMOTE (Step 13) brings it back. Nothing is deleted from the file — the reason it left is on the record. It is also **not** carried: it is no longer in `tasks[]`, so the next cycle's matrix never sees it, and its standing `cancel` or `reject` verdict is the durable second guard (matrix row 2).
 - Its only writes are the one plan-file rewrite and the one log line — never an external action, never executed content.
 
 **16 — ADVANCE-PHASE (shared procedure).** Authored here once; reused by name (never re-authored)
@@ -308,7 +326,6 @@ the cycle via `advance-phase(namespace, slug, to_phase)`, in this exact order:
 - (c) `to_phase` of `triaged` or `executed` → rewrite **only** that record's `phase` in place; every other field, every other record, and every event record stay byte-unchanged.
 - (d) `to_phase` of `closed` → in **one** write: set `processing_status: processed` on every `events[]` record whose `event_id` appears in this record's `event_ids[]`, **and** remove the record from `work[]`. This is **the only place in the corpus where an event flips to `processed`**. `closed` is a transition, never a resting value — no record is ever left carrying it. An `event_id` the record names that is no longer in `events[]` (a hand edit removed it) → flip the ones actually found, surface the miss, and never abort the close-out.
 - (e) a write failure at any clause is surfaced in chat and the session **continues** — never halted, never silently retried.
-- Why continuing is safe: every beat this procedure punctuates is idempotent. Triage verdicts append and the latest per `task_id` wins; the walk passes over tasks already carrying `handled_on` and re-runs the rest against handlers that rewrite their own same-date artifact; `write-crm` rewrites its same-date file; and clause (b)'s forward guard turns a repeated advance into a surfaced no-op. A failed phase write therefore costs the rep one repeated beat on the next run, never a corrupted cycle.
 
 **17 — MARK-HANDLED (shared procedure).** Authored here once; reused by name (never re-authored) by
 `run-unbound`'s task-execution loop. Records the single fact that the loop gave one task its turn,
@@ -317,7 +334,7 @@ via `mark-handled(namespace, slug, task_id)`, in this exact order:
 - (a) resolve the item's **latest-dated** `drafts/*-tasks.yaml` — the same authority rule SET-STATUS (c) and APPLY-EDIT (a) already state; it is not re-derived here.
 - (b) locate the task by `id` — on an unknown id say so honestly and write nothing; never fabricate or renumber.
 - (c) write **only** that task's `handled_on: YYYY-MM-DD` (the run's `timezone`) as valid pure YAML — every other field, and every other task, byte-unchanged.
-- (d) never write it for a `define-only` task, a rejected task, or a task carrying no verdict: none of the three takes a turn. The registry's mode word is the whole test and no task type is named here, which is what keeps this correct for any handler a client pack adds.
+- (d) **one** verdict earns the marker and no other: an `execute` at the task gate, the gate immediately before dispatch. So never write it for a `define-only` task (which never reaches that gate), nor for a task deferred or cancelled there, nor for one carrying no verdict: none of the four spends a turn. Deferral is the case to hold onto — the turn was offered and **declined**, not spent, and the absent marker is what carries the task at matrix row 5. The registry's mode word plus that one verdict are the whole test; no task type is named here, which keeps this correct for any handler a client pack adds.
 - (e) never write it from inside a handler, never append it to `feedback-log.jsonl`, and never read it as the rep-owned `status`: a task can carry `handled_on: 2026-08-01` and `status: not-done` at once — the loop drafted the email, the rep has not sent it.
 - Log nothing: this procedure's whole write is the one single-field plan-file rewrite.
 
@@ -377,7 +394,7 @@ evaluating after the rep's verdicts is what stops it grading an exit criterion a
 exists to satisfy. Extract-and-evaluate only. Emit the in-memory `crm_update` object (schema
 below) — the field-level update a CRM *would* receive, handed back for `write-crm`, **not** written
 here. Touches nothing in `tasks`/`dropped`/`open_questions`/`next_step`; the recommendation is
-advisory only (see Invariants — ENRICH is the sole stage writer). Four blocks:
+advisory only (see Invariants — ENRICH is the sole stage writer). Five blocks:
 
 - **`stage_recommendation`** — evaluate the REFERENCE-time stage (the `stage:` loaded from `context.md` in Step 1, before ENRICH runs) against that stage's `**Exit criteria:**` bullets in `company/process.md`:
   - Enum-validate the stage first — never evaluate criteria against an invented stage:
@@ -404,6 +421,9 @@ advisory only (see Invariants — ENRICH is the sole stage writer). Four blocks:
   - Captured is durable: when current sources are silent, a prior entry with the same verbatim field key and `status: captured` stays captured. Cite it through the existing context kind as `context.md: "<prior evidence value verbatim>"`, preserving that prior evidence value inside the citation and preserving the prior `updated` date. Only an explicit rep edit may downgrade a captured field.
   - `gaps[]` is exactly the `fields[]` entries whose status is `missing`, in declaration order. Each gap is `{ field, coach }`, with `coach` copied byte-for-byte from that field's `Coach:` value in `company/process.md`; never generate, normalize, or reword coaching text.
   - Qualification never gates: the advancement gate above continues to use only the REFERENCE-time stage's `**Exit criteria:**` bullets. Even with qualification gaps, all exit criteria met still yields `recommendation: advance`.
+- **`summary`** — optional; the close-out narrative, carried verbatim from the dated `## Activity Log` entry ENRICH (Step 8) composed this run. A carry like `next_step`: never re-composed, never re-decided.
+  - None composed → omit it entirely; an absent `summary` is a valid emission, never padded from the blocks above, on `product_gaps`' honest-empty discipline.
+  - An ordinary text value: `text_max_len` truncation applies on the write path (`write-crm` BIND), never here.
 
 ```yaml
 crm_update:
@@ -441,11 +461,28 @@ crm_update:
     gaps:                                    # exact missing-field projection
       - field: Decision Criteria
         coach: "ask what a clear yes looks like on paper, and who wrote it"
+  summary: >                                 # optional; verbatim Activity Log carry
+    Pilot hit the agreed latency target; Okta SSO raised as a gap.
+```
+
+**Source list.** What a run produces — `write-crm`, `runtime/lint.sh` and the write-policy interview
+read this block and none restates it. Keys are logical field names as the policy's field map spells
+them; values are the logical objects each may map onto. A field absent here can never be filled.
+`current_stage` is context, not an update, and is absent by design.
+
+```yaml
+crm_update_sources:
+  stage: [opportunity]
+  next_step: [opportunity]
+  product_gaps: [account, opportunity]
+  summary: [note, opportunity]
+  qualification: [opportunity]
+  qualification_notes: [opportunity]
 ```
 
 ## Writes
 
-- `accounts|projects/<slug>/drafts/YYYY-MM-DD-tasks.yaml` — PERSIST (Step 7); also the single-field SET-STATUS write, the promotion rewrite, the APPLY-EDIT rewrite (Step 15), and MARK-HANDLED's single-field `handled_on` write (Step 17).
+- `accounts|projects/<slug>/drafts/YYYY-MM-DD-tasks.yaml` — PERSIST (Step 7); also the single-field SET-STATUS write, the promotion rewrite, the APPLY-EDIT rewrite (Step 15), the CANCEL-TASK rewrite (Step 15.5), and MARK-HANDLED's single-field `handled_on` write (Step 17).
 - `accounts|projects/<slug>/context.md` — ENRICH (Step 8): appended `## Activity Log` entry + frontmatter refresh; it never touches the optional `qualification:` block. Account-only CAPTURE-QUALIFICATION (Step 18) is that block's **sole** authority, invoked at close-out, and appends one Activity Log line in a successful answers-mode rewrite.
 - `state/run-state.yaml` — the item's `work[]` record: created by RECORD WORK (Step 9), its `phase` rewritten in place by ADVANCE-PHASE (Step 16), and removed by that same procedure at `closed` — which, in the very same write, sets `processing_status: processed` on the event records that removed record named. No other record and no other field; `last_run` and `timezone` are never touched here.
 - `state/feedback-log.jsonl` — `capture-feedback` append, one line per verdict / one `edit` per promotion; Step 18 never writes it.
@@ -464,7 +501,7 @@ crm_update:
 - `carried_from` — **optional**, `{ plan_date, task_id, count }`; absent unless the task was carried, and **written only at PERSIST** (Step 7). On the `handled_on` precedent it is **not** a rep declaration — `status` is that and stays rep-owned; **not** a feedback verdict — `feedback-log.jsonl` is that; and never read as `status`.
   - `plan_date` and `task_id` name the prior plan file and this task's id inside it; `count` is that prior task's own `carried_from.count` **plus one**, an absent prior value reading as `0`.
   - The count therefore chains through the latest-dated file alone: **no tasks file but the latest-dated one is ever opened**, and the `drafts/` listing Step 2's row 4 uses is a directory listing, not a history read.
-- `title`, `rationale`, and `context` are rep-mutable via APPLY-EDIT (Step 15); all other fields are write-once (`id`/`type` never change — a type change is a reject plus a new/promoted task).
+- `title`, `rationale`, and `context` are rep-mutable via APPLY-EDIT (Step 15); all other fields are write-once (`id`/`type` never change — a type change is a cancel plus a new/promoted task).
 - The object also carries `dropped[]`, `open_questions[]`, and `next_step`.
 - Feedback line: `{ts, namespace, slug, task_id, verdict, note}` under `state/`.
 
@@ -492,6 +529,8 @@ crm_update:
 - ENRICH (Step 8) is the sole stage writer: the Step 6.5 recommendation is advisory and never mutates a `stage:` value anywhere.
 - Qualification fields and gaps are never advancement inputs: only the current stage's exit criteria feed `stage_recommendation`; a company that wants a field to gate must declare it as an exit criterion.
 - The plan file and the feedback log never disagree: promotion and APPLY-EDIT rewrite the plan file first and never half-apply — on a plan-write failure, nothing is logged.
+- `priority` is **unique across `tasks[]`** in every plan file this skill writes: Step 3 emits a strict rank and PROMOTE's (b2) shift preserves it. Rank holes are legal (a cancel leaves one); two tasks at one rank never are.
+- An **enabling task ranks strictly above the task it enables** in every plan file this skill writes: where one task's deliverable is another task's missing prerequisite, it carries the lower `priority` number. Step 3 emits that order and no later writer inverts it — PROMOTE's (b2) shift is the only rank-shifting write there is, and APPLY-EDIT holds `priority` out of scope.
 - `status` is never written to `feedback-log.jsonl` — lifecycle status and feedback verdicts stay distinct. `handled_on` inherits that same separation exactly: it is never a verdict, never lands in `feedback-log.jsonl`, and is never read or written as `status`.
 - ADVANCE-PHASE (Step 16) clause (d), at `to_phase` of `closed`, is the **only** site in this corpus at which an event flips to `processed` — no other step, no other skill, and no handler writes that value.
 - Type-set alignment (explicit & checkable): `task-registry.md` (Part A) is the single authority for the `type` set; every type this skill can emit appears in the registry (a type with no registry row degrades to `internal`, never invented), and every `execute` row names a resolvable handler — the emitted types are a guaranteed subset of the registry's canonical set, inspectable by hand against Part A.

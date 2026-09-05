@@ -1,18 +1,17 @@
 ---
 name: pre-slate-fallback
-description: Lazy mechanical fallback for runtime/helpers/prepare-slate.py's prepare/normalize/materialize/render commands. Loaded only when the helper is unavailable — missing, no PyYAML 6.0.3, or an unsupported contract_version — never on the happy path. Contains the displaced deterministic transforms only; every ambiguity, fuzzy-identity, namespace, entity-resolution, ranking, selection, and rep-decision rule stays with discover-events.md, classify-work.md, and build-slate.md.
+description: Lazy mechanical fallback for runtime/helpers/prepare-slate.py's prepare/normalize/materialize/reslate/render commands. Loaded only when the helper is unavailable — missing, no PyYAML 6.0.3, or an unsupported contract_version — never on the happy path. Contains the displaced deterministic transforms only; every ambiguity, fuzzy-identity, namespace, entity-resolution, ranking, selection, and rep-decision rule stays with discover-events.md, classify-work.md, and build-slate.md.
 tier: all
-contract_version: 1
+contract_version: 3
 ---
 # pre-slate-fallback
 
-Version-matched prose equivalent of `prepare-slate.py` protocol `contract_version: 1`. The four
-sections below match its four commands exactly — same inputs, same outputs, same failure
+Version-matched prose equivalent of `prepare-slate.py` protocol `contract_version: 3`. The five
+sections below match its five commands exactly — same inputs, same outputs, same failure
 behavior — so a run under this fallback and a run under the helper are indistinguishable to the
-rep. This file carries no semantic policy: every decision here is closed (same input always
-produces the same output) and mechanical. Confident non-call exclusion, ambiguity labeling, fuzzy
-name/domain matching, entity resolution, near-duplicate escalation, and every rep-facing question
-stay exactly where they already are, in the owning skill.
+rep. The division of labour is the frontmatter description's: every decision here is closed (same
+input always produces the same output) and mechanical, and every judgment call that description
+names stays exactly where it already is, in the owning skill.
 
 ## prepare
 
@@ -33,21 +32,26 @@ Read-only. Given `last_run`, `timezone`, optional `scan_window`, and one already
 4. Build the domain-routing index from every account's `domains:` list: lowercase each domain and
    strip exactly one trailing dot. A domain claimed by exactly one slug routes to it; a domain
    claimed by two or more slugs is a collision and routes to none of them.
-5. Report the resolved window, the known anchors, the domain routes and collisions, and the
-   per-slug display data. Write nothing.
+5. Carry the resolved window, the known anchors, the domain routes and collisions, and the
+   per-slug display data forward **in memory**; **write no snapshot file**. The helper's snapshot
+   exists so a model caller never re-types it — here the model *is* the executor, so a file would
+   cost exactly those tokens and buy nothing. Same rules, different handoff, deliberately: do not
+   close the asymmetry.
 
 ## normalize
 
-Pure. Given the `prepare` output above plus raw calendar candidates (`{ title, start, end,
-attendees, ref }`) and raw email candidates (`{ thread_ref, subject, participants, last_message_at,
-latest_external_message_body, sender_email }`):
+Pure. Given the `prepare` output carried above (the helper reads its own snapshot instead) plus raw
+calendar candidates (`{ title, start, end, attendees, ref }`) and raw email candidates
+(`{ thread_ref, subject, participants, last_message_at, sender_email }`) — a message body the
+source also returned is ignored here, never read and never emitted:
 
 1. For each candidate, in its own source's input order, compare its own timestamp
    (`start` for calendar, `last_message_at` for email) to the window: keep only strictly after
    `last_run` and at or before `discovery_until`. A candidate outside the window is a normal
    exclusion — it remains eligible next run, never an error.
-2. Preserve `occurred_at`, the durable reference, titles, participants, and email body strings
-   verbatim — never reformatted, truncated, or invented.
+2. Preserve `occurred_at`, the durable reference, titles and participants verbatim — never
+   reformatted, truncated, or invented. Emit no message body: a skill that needs one reads it off
+   the source results, never off this transform's output.
 3. A retained candidate with no durable reference (`ref` / `thread_ref`) is a fault on that one
    item, surfaced by index and source — never silently dropped, never given a synthesized
    reference.
@@ -62,16 +66,23 @@ latest_external_message_body, sender_email }`):
 
 ## materialize
 
-The one mutation, equivalent to `materialize --apply`. Given classified events — each carrying
+The one mutation, equivalent to `materialize --apply --render`: `--apply`'s upsert and, in the same
+pass, the fragment `--render` produces for the given `surface` by the `render` rules below — that
+template read first, so an unreadable one stops before any write. Given classified events — each
+carrying
 `event_id`, `source`, `external_ref`, `occurred_at`, `namespace`, `slug`, a required in-memory
-`display_name`, and the optional display annotation (`call_type` for calls, `subject` for emails)
-— upsert them into `state/run-state.yaml`'s `events` list:
+`display_name`, the optional display annotation (`call_type` for calls, `subject` for emails), and
+an optional `origin` — upsert them into `state/run-state.yaml`'s `events` list:
 
 1. Match by `event_id` only. Rediscovered (already in `events`) → update `occurred_at` and the
    optional display annotation in place; preserve `processing_status` and `evidence_status`
    verbatim. New → append with `processing_status: pending` and `evidence_status: unknown` for a
    call, `present` for an email (an email's body arrives inline with discovery; a call's
    transcript is not fetched before selection, so "not looked yet" is the honest answer).
+   `origin` records how the event was found, and rides both branches the same way: write it where
+   the batch supplies it, leave it exactly as the record already holds it where the batch does
+   not. Its only legal value is `recording`; any other value refuses the batch. Never write it
+   empty and never default it — absent means the calendar, and the sibling value is never written.
 2. Never delete an event. Every `pending` event this batch does not touch stays exactly as it was;
    every `processed` event stays processed regardless of rediscovery. Duplicate `event_id` values
    within one batch are a refusal, not a last-write-wins merge.
@@ -112,6 +123,26 @@ The one mutation, equivalent to `materialize --apply`. Given classified events �
    the original bytes untouched on every failure before the rename; if the rename's own durability
    is uncertain, stop and surface it — never guess that it landed.
 
+## reslate
+
+Read-only, and the redraw the loop takes once an account's cycle has closed. Given `workspace_root`,
+the run's fixed `sampled_at`, the `surface`, and optionally the display names already resolved this
+run:
+
+1. Read `state/run-state.yaml` as it stands now, validating it by the same rules `prepare` applies,
+   and hold `sampled_at` to `timezone` the same way. Never sample the clock again: the run has one
+   instant, and every recency label on the redrawn slate is computed against it.
+2. Read each known anchor's `context.md` fresh, exactly as `prepare` step 3 does. An account whose
+   context was written earlier in this same session shows its real name here rather than a
+   humanized slug.
+3. Derive `slate_view` by `## materialize` step 4, unchanged — its grouping, its four pills, its
+   name precedence, its ordering, its plain line. Nothing is restated here because nothing differs:
+   those same rules over current state are the whole command.
+4. Render the rows by the `## render` rules below, including its empty answer.
+5. **Write nothing.** No event is touched, no snapshot is taken or read, and `state/run-state.yaml`
+   is byte-identical before and after. The closed account's card is absent because its events are
+   no longer `pending` — never because a row was filtered, dropped, or hidden.
+
 ## render
 
 Read-only. Fill `resources/templates/slate-widget.html` from the `slate_view` rows in the given
@@ -127,6 +158,9 @@ has always used. Reproduce every display string verbatim. An empty `slate_view` 
   `discovery_until` not strictly after `last_run` — stop before either source query.
 - A materialize precondition mismatch (the state changed since the paired `prepare`) — stop and
   write nothing; never merge blind.
+- A snapshot disagreeing with the caller's `sampled_at` (`snapshot_mismatch`), or one absent,
+  unparseable or key-incomplete (`snapshot_unreadable`) — stop the run. Neither licenses a second
+  fallback layer; prose reasoning reproduces the same disagreement.
 - A duplicate `event_id` inside one classified batch, or a classified event with no
   `display_name` — stop before any upsert.
 - A write or rename failure, or an uncertain rename outcome — stop; leave prior bytes as they

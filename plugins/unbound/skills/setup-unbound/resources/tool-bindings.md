@@ -21,6 +21,17 @@
   `connect-tools` binding test gate, so no concrete ChatGPT tool name appears anywhere below, and none may be added
   without its observation.
 
+## Resolution precedence — the working tree's file wins
+
+- **This file, in the rep's working tree, is the resolution authority** for every capability below. `connect-tools` is
+  its sole writer and it holds the current binding state, so a row the rep rebinds there takes effect at every beat —
+  the pre-slate ones included.
+- **A bundled `resources/bindings/*.md` fragment is a read-cost fast path, never a second authority.** It is a slice of
+  the bundled *reference* that ships beside it, and a reference is not a rep's state. It resolves a capability only
+  where the working tree carries no bindings file at all, which is why a fresh tree keeps the whole fragment win.
+- **Divergence is the rep's binding, not drift.** A working-tree row that differs from the fragment is used as written
+  — never reconciled against the fragment, never reported as a fault.
+
 ## Security posture (ADR-4)
 
 Every **read** binding in this file is **read-scope only**, and external **writes are never implicit**: a write can
@@ -29,10 +40,12 @@ own ADR-4 conditions hold. No
 capability acquires a write scope by turning up in a runtime's tool list, and where none is declared or bound this
 file requests and configures no write scope at all. In this runtime that bar is doubly unreachable today: no
 external capability is positively confirmed bound, because no tool inventory has been enumerated.
-The `render.*` / `review.collect` capabilities are **local render/capture surfaces, not external reads or writes**:
+The `render.*`, `review.collect` and `input.collect` capabilities are **local render/capture surfaces, not external
+reads or writes**:
 none introduces a new writer or write scope; the only writes they can lead to are the existing local authorities in
 `skills/pipeline/work-account.md` — SET-STATUS, `capture-feedback`, and APPLY-EDIT — plus, for the setup-time
-`review.collect` item kinds, the invoking skill's local file write (see `## review.collect`).
+`review.collect` item kinds, the invoking skill's local file write (see `## review.collect`). `input.collect` leads to
+none of them: its answers are held in-session and returned to the caller (see `## input.collect`).
 
 ## Binding table — external reads
 
@@ -48,6 +61,7 @@ capability as unavailable and takes the degradation path stated in its row.
 | `calendar.list_events_since(ts)` — `ts` is an ISO-8601 timestamp | read | **UNRESOLVED** — no calendar tool observed (enumeration is Epic 3's gate, G2). Degradation until bound: calendar discovery is unavailable, stated to the rep; discovery proceeds from the mail source alone when that binds first, or reports an empty discovery honestly. | `skills/pipeline/discover-events.md` |
 | `calendar.availability(attendees, window)` — `attendees` = the rep + the named stakeholders; `window` = start/end ISO 8601, resolved in-skill; bounded to one query per draft. Honest degradation: unreadable attendee → rep-only slots phrased as offers to confirm; capability unavailable → the meeting ask carries no concrete times | read | **UNRESOLVED** — no free/busy surface observed. The degradation contract already covers the unbound state: the meeting ask carries no concrete times. Open-slot derivation stays in-skill (pure date math, run `timezone`) whenever a source binds. | `skills/handlers/draft-followup.md` (AVAILABILITY) |
 | `transcript.get(call_ref)` — provider set **unresolved** in this runtime: provider rows are added one per observed connector at the Epic 3 gate, exactly as the live file's rows were | read | **UNRESOLVED** — no transcript connector observed. Until at least one provider row is confirmed bound, every call resolves `missing`; the consuming skill marks the call `transcript: missing`, surfaces it, never fabricates (Pattern 2). No provider name is recorded here before its observation. | `skills/pipeline/fetch-transcript.md` |
+| `transcript.list_since(ts)` — provider set **unresolved** in this runtime, exactly as for the fetch half: rows are added one per observed connector at the Epic 3 gate. Metadata only in every runtime — a listing carries no transcript text | read | **UNRESOLVED** — no recording connector observed. Until at least one provider row is confirmed bound the capability reports itself **unavailable**: recording discovery is unavailable, stated to the rep, and discovery proceeds from whichever other sources bind, or reports an empty discovery honestly. No provider name, listing tool or window semantics is recorded here before its observation. | — |
 | `content.search(query)` — returns opaque `ref`s | read | **UNRESOLVED** — no content-store tool observed. Degradation until bound: MATCH-ASSET reports `none` and drafts proceed with no asset named; setup's asset intake proceeds from files shared in chat and the interview. | `skills/handlers/draft-followup.md`, `skills/setup-unbound.md` (asset intake) |
 | `content.get(ref)` — resolves a `ref` to its content | read | **UNRESOLVED** — same evidence gap and gate as `content.search`; an unbound pair degrades together. | `skills/handlers/draft-followup.md`, `skills/setup-unbound.md` (asset intake + asset-link verification) |
 | `web.fetch(url)` — resolves a public web page URL to its readable content | read | **UNRESOLVED** — this runtime may expose a browse surface, but none has been observed and none is assumed. **Optional-degraded:** capability unavailable ⇒ the website intake path is unavailable, stated to the user; setup proceeds via chat files, the asset index, or the interview. | `skills/setup-unbound.md` (website intake) |
@@ -74,18 +88,20 @@ on a confirmed surface; layout minutiae live in the template, never in prose.
 | --- | --- | --- | --- | --- |
 | `render.tasks(task_view)` | render, no capture | **BOUND (protocol)** — card stack, one card per task — `resources/templates/task-plan-widget.html` | plain Markdown checklist in chat | `skills/pipeline/work-account.md` (re-render after SET-STATUS / APPLY-EDIT), `skills/standalone/collect-tasks.md` (roundup) |
 | `review.collect(checkpoint_view)` | render/capture (local verdicts only) | **Stays on the typed fallback** — evidence-cited 2026-08-12 (G1, story 3.1): the observed `visualize` surface runs client-side JS but no channel from a rendered fragment back into the conversation has been observed, and this capability's whole value **is** capture — a card stack whose controls capture nothing invites clicks that silently mean nothing. Flips only on a later G1 observation of such a channel, its grammar recorded from observation, never designed in advance | in-chat `accept \| edit \| reject` prompt per item | `skills/run-unbound.md` (Step 3.5 batch triage + Step 3.5 material-edit re-confirm + Step 5 close-out open questions + qualification gaps) |
+| `input.collect(ask_view)` | render/capture (local answers only) | **Stays on the typed fallback** — same evidence and the same reason as `review.collect` (2026-08-12, G1, story 3.1): no channel from a rendered fragment back into the conversation has been observed, and this capability's whole value **is** capture — a form whose Submit reaches nothing invites a click that silently means nothing. Flips only on a later G1 observation of such a channel, its grammar recorded from observation, never designed in advance | the same fields asked in chat, one numbered line each, every default stated as the proposed answer | `skills/handlers/draft-followup.md` (SCHEDULING-CONFIRM), and any `execute` handler per `task-registry.md` Part B's Input-collection obligation |
 | `render.slate(slate_view)` | render, no capture | **BOUND (protocol)** — card grid — `resources/templates/slate-widget.html`; selection stays typed (the fallback's own rule) | plain annotated slate lines | `skills/pipeline/build-slate.md` Step 4 (via `run-unbound` Steps 2–3) |
 | `render.email_draft(draft_view)` | render/capture (the draft's own verdict) | **BOUND (protocol) — display half only** — mail-client preview — `resources/templates/email-draft-widget.html`; the verdict footer is stripped by projection and the three verdicts are typed in chat (see `## render.email_draft`) | cited filename + draft body in chat, with the same three verdicts invited in chat | `skills/handlers/draft-followup.md`, at the EXECUTE TASKS artifact-verdict gate (`triage-and-execute.md` Step 4) |
 | `render.artifact(artifact_view)` | render/capture (the artifact's own verdict) | **BOUND (protocol) — display half only** — generic artifact preview — `resources/templates/artifact-widget.html`; the verdict footer is stripped by projection and the three verdicts are typed in chat (see `## render.artifact`) | cited filename + `body_blocks[]` content in chat, with the same three verdicts invited in chat | any `execute` handler per `task-registry.md` Part B's Output-edit obligation (default render capability) |
-| `render.crm_update(crm_view)` | render, no capture | **BOUND (protocol)** — informational CRM card — `resources/templates/crm-update-widget.html` | plain in-chat "CRM Updates (simulated)" Markdown section | `skills/pipeline/write-crm.md` (APPLY) |
-| `render.connections(connections_view)` | render, no capture | **BOUND (protocol)** — capability status board — `resources/templates/connections-widget.html` | plain Markdown capability table + verdict line in chat | `skills/standalone/connect-tools.md` (both entries) |
+| `render.crm_update(crm_view)` | render, no capture | **BOUND (protocol)** — informational CRM card — `resources/templates/crm-update-widget.html` | plain in-chat CRM-updates Markdown section, its heading naming `state` | `skills/pipeline/write-crm.md` (APPLY) |
+| `render.task_push(task_push_view)` | render, no capture | **BOUND (protocol)** — informational card — `resources/templates/task-push-widget.html` | the same payloads in full as a plain in-chat Markdown section | the task-manager push seam's per-payload approval walk (composition slot 9) |
+| `render.connections(connections_view)` | render, no capture | **BOUND (protocol)** — capability status board — `resources/templates/connections-widget.html` | plain Markdown capability table + verdict line in chat | `resources/connect-tools.md` (both entries) |
 | `render.setup_progress(progress_view)` | render, no capture | **BOUND (protocol)** — section checklist card — `resources/templates/setup-progress-widget.html` | plain Markdown section-status list in chat | `skills/setup-unbound.md` (progress + resume + audit views) |
 | `render.context_preview(preview_view)` | render, no capture | **BOUND (protocol)** — formatted artifact preview — `resources/templates/context-preview-widget.html` | plain Markdown artifact section in chat | `skills/setup-unbound.md` (section-loop previews) |
 | `render.source_intake(intake_view)` | render, no capture | **BOUND (protocol)** — source-catalog checklist card — `resources/templates/source-intake-widget.html` | plain Markdown item-status list in chat | `skills/setup-unbound.md` (step-2 intake, re-rendered after each answer) |
 
 ## API contract — logical capability signatures (stable across runtimes)
 
-Per `notes/architecture.md#API-Contracts`; the signatures are **runtime-invariant** — only the binding tables change
+Per the architecture record's API Contracts; the signatures are **runtime-invariant** — only the binding tables change
 per runtime. `[target-parity]` parses this block and the live file's and fails on any missing, extra, or changed
 signature; the comment tails are runtime commentary and are outside that comparison. Render view shapes live in their
 capability sections below.
@@ -94,6 +110,10 @@ capability sections below.
 calendar.list_events_since(ts)  -> [event]               # read
 calendar.availability(attendees, window) -> [open_slot]  # read; open_slot = { start, end } (ISO 8601 with offset, in the run's timezone); an attendee whose free/busy is unreadable is reported unreadable, never guessed
 transcript.get(call_ref)        -> { text, provider } | missing  # read; provider set unresolved in this runtime — rows are added per observed connector, and until one is bound every call resolves `missing` => never silently drop (Pattern 2)
+transcript.list_since(ts)       -> [recording] | unavailable     # read; METADATA ONLY, never transcript text — nothing is retrieved before selection; a body is recovered later, by transcript.get. unavailable ⇒ recording discovery is unavailable, stated to the rep, and discovery proceeds from the other sources alone.
+                                                          # recording = { title, start, end, attendees[], ref, provider, calendar_ref? }
+                                                          # truncated names the oldest instant actually read, present only when the
+                                                          #           bounded paging loop could not reach back as far as ts
 content.search(query)           -> [ref]                  # read
 content.get(ref)                -> content                # read
 web.fetch(url)                  -> page_content | unavailable  # read; optional-degraded — unavailable ⇒ website intake unavailable (stated), setup proceeds via files/assets/interview
@@ -112,10 +132,15 @@ email.get_thread(thread_ref)    -> thread | missing       # read; get-by-ref, sa
                                                           # no longer resolves => missing (Pattern 2 — surfaced, never fabricated)
 render.tasks(task_view)         -> interactive_checklist | markdown_checklist   # render, no capture
 review.collect(checkpoint_view) -> verdicts                                     # render/capture; verdicts route to capture-feedback
+input.collect(ask_view)         -> answers                                      # render/capture; asks for a fact the run cannot derive, never for a verdict; one answer per field id
+ask_view = { title, context_line, fields[] }
+field = { id, label, kind: choice | multi_choice | text | list, options?[], default?, basis? }   # options[] on the two choice kinds only; basis names where a derived default came from, so a pre-filled answer is never unexplained
+answers = { field_answers[]: { field_id, value } }                              # submit returns every filled field, untouched pre-filled ones included; no submit returns nothing at all
 render.slate(slate_view)        -> slate_cards | annotated_lines                 # render; interactive card grid, fallback = plain annotated slate lines
 render.email_draft(draft_view)  -> { preview, item_verdict }                     # render/capture; interactive mail-client preview + verdict footer, fallback = cited filename + body in chat with the verdict invited in chat
 render.artifact(artifact_view)  -> { preview, item_verdict }                     # render/capture; generic artifact preview + verdict footer, fallback = cited filename + body_blocks[] in chat with the verdict invited in chat
-render.crm_update(crm_view)     -> crm_card | markdown_block                     # render; informational CRM-update card, fallback = plain in-chat "CRM Updates (simulated)" Markdown section
+render.crm_update(crm_view)     -> crm_card | markdown_block                     # render; informational CRM-update card, state-keyed; fallback = plain in-chat CRM-updates Markdown section carrying the same fields, state included
+render.task_push(task_push_view) -> task_push_card | markdown_block              # render, no capture; informational queued-payload card carrying every payload in full, fallback = the same payloads in full as a plain in-chat Markdown section
 render.connections(connections_view) -> connections_board | markdown_table       # render, no capture
 render.setup_progress(progress_view) -> progress_card | markdown_list            # render, no capture
 render.context_preview(preview_view) -> artifact_preview | markdown_section      # render, no capture
@@ -198,11 +223,25 @@ by rendering.
 
 `checkpoint_view = { items[], open_questions[], qualification_gaps?[] }`; each
 `qualification_gap = { field, coach }`; each `item = { task_id, title, rationale, evidence, context?, kind:
-"task" | "context_section" | "binding_change", body? }` — `context` is the task's typed execution-context block on
-`kind: "task"` items. The produced email draft is **not** an item kind here: it carries its own verdict on its own
+"task" | "context_section", mode?, body? }` — `context` is the task's typed execution-context block on
+`kind: "task"` items, and `mode ∈ { execute | define-only }` is that task's registry execution mode, carried as the
+Step 4 walk filter and the card's rep-owned type pill — never an affordance switch (below). The produced email draft is **not** an item kind here: it
+carries its own verdict on its own
 surface (see `## render.email_draft`). Returns `verdicts = { item_verdicts[], open_answers[],
-qualification_answers?[] }`; `item_verdict = { task_id, verdict ∈ {accept|edit|reject}, note }`;
+qualification_answers?[] }`; `item_verdict = { task_id, verdict, note }`;
 `open_answer = { question, answer }`; `qualification_answer = { field, answer }`.
+
+**The verdict enum is scoped by call site, not by `kind` alone** — a `kind: "task"` item returns a different set at
+the plan gate than at the per-task gate, the two asking different questions:
+
+| Scope | Where | Enum |
+| --- | --- | --- |
+| plan verdict | `run-unbound` Step 3.5 — the batch triage and its material-edit re-confirm | `accept \| reject \| edit` |
+| task verdict | `run-unbound` Step 4a — the per-task gate, before dispatch | `execute \| defer \| cancel \| edit` |
+| artifact verdict | the handler's own output gate (see `## render.artifact`) | `accept \| edit \| reject` |
+| context section | `setup-unbound`, outside the run loop | `accept \| edit \| reject` |
+
+The sets never mix — a value from the wrong one is an out-of-enum write (ask, never guess).
 
 **Call-site policy — batch or single-item, fixed per site.** `items[]` was always a list; which mode a site uses is
 settled here, never chosen by the caller:
@@ -211,31 +250,78 @@ settled here, never chosen by the caller:
 | --- | --- | --- | --- | --- |
 | `run-unbound` Step 3.5 — plan triage | **batch** | all retained tasks, in priority order | `[]` | `[]` |
 | `run-unbound` Step 3.5 — material-edit re-confirm | single-item | the one re-shaped task | `[]` | `[]` |
+| `run-unbound` Step 4a — per-task gate (`mode: execute` tasks only) | single-item | the one task at its turn, **with** its typed `context` block | `[]` | `[]` |
 | `run-unbound` Step 5 — close-out questions + qualification | no items | this run's list | `crm_update.qualification.gaps[]` or `[]` (one call when either list is non-empty; skip only when both are empty) |
 | `setup-unbound` — `context_section` | single-item | one previewed section | `[]` | `[]` |
-| `connect-tools` — `binding_change` | single-item | one proposed row edit | `[]` | `[]` |
 
 A **batch** return simply carries N `item_verdict`s. **An omitted `task_id` in a batch return is an omitted verdict**
 — silence stays per-task inside a batch, and nothing is written for a card the rep never touched. A batch of one is
-still a batch; **zero retained tasks means no call at all** (never render an empty checkpoint). Verdict mapping:
-Accept → `accept`; Reject → `reject`; a free-text edit → `edit` with the text captured **verbatim** as `note`. **No
-answer for an item → no verdict for that item** (silence is not a verdict); hand-typed equivalents map identically;
-ambiguous free text that cannot map to the enum → ask, never an out-of-enum write. Verdicts route through the
+still a batch; **zero retained tasks means no call at all** (never render an empty checkpoint).
+
+**No card ever hides a button.** Every plan card carries the same three and every 4a card the same four: the walk
+admits `mode: execute` tasks alone, so an Execute affordance at 4a is always a real option and `mode` never switches
+what a card offers.
+
+Verdict mapping:
+at the **plan** gate, Accept → `accept` and Reject → `reject`; at the **4a task** gate, Execute → `execute`, Defer →
+`defer` and Cancel Task → `cancel`. Everywhere, a free-text edit → `edit` with the text captured
+**verbatim** as `note`. **No
+answer for an item → no verdict for that item** (silence is not a verdict); hand-typed equivalents map identically
+("keep it" → accept, "not a real task" → reject, "run it" → execute, "later"/"I'll do it" → defer, "drop it" → cancel);
+ambiguous free text that cannot map to that site's enum → ask, never an out-of-enum write. A hand-typed `execute`
+against a `mode: define-only` task is out of enum wherever it arrives — no surface offered it and that task never
+reaches the 4a gate at all: surface it and re-ask, never invent a handler or a turn for it. Verdicts route through the
 existing write authorities — no new writer: one `capture-feedback(namespace, slug, task_id, verdict, note)` line per
-verdict to `state/feedback-log.jsonl`; a **task** `edit` is applied via work-account's APPLY-EDIT (an **output**
+verdict to `state/feedback-log.jsonl`; a **task** `edit` is applied via work-account's APPLY-EDIT, and a `reject` or a
+`cancel` via its CANCEL-TASK, which stamps the reason word its caller passes — `rejected by rep on <date>` or
+`cancelled by rep on <date>` (an **output**
 `edit` is applied by the artifact's own handler — see `## render.email_draft`); verdicts never touch task `status`
-(SET-STATUS's domain). `open_questions[]` and `qualification_gaps[]` are **never widget-rendered** — they remain
+(SET-STATUS's domain), whose `not-done` value is what a deferred task simply keeps. `open_questions[]` and `qualification_gaps[]` are **never widget-rendered** — they remain
 in-chat free text; `open_answers[]` are echoed in chat and held in-session with nothing written for them, and each
 non-empty `qualification_answer` routes through exactly one work-account `capture-qualification` invocation. The
 checkpoint itself is write-free.
 
 Setup-time item kinds (outside the run loop): `context_section` — one previewed context section, its `task_id` slot
 carrying the section id (`process | messaging | assets | voice | state`); consumed by `skills/setup-unbound.md`.
-`binding_change` — one proposed row edit to this file; consumed by `skills/standalone/connect-tools.md`. One item per
+There is **no binding-change item kind**: `connect-tools` binds every row it can resolve on its own and asks nothing,
+so no binding edit passes through this surface (see that skill's Procedure). One item per
 call, never batched, same `accept | edit | reject` enum. **Routing outside the run loop:** accept ⇒ the invoking
 skill performs its local file write; edit ⇒ the note is applied to the draft/proposal and re-presented; reject ⇒ the
 section is re-entered / the proposal dropped. **No `feedback-log.jsonl` line is written** — `capture-feedback`
 remains exclusively the run loop's prioritization instrument.
+
+## input.collect
+
+`ask_view = { title, context_line, fields[] }`; each `field = { id, label, kind: choice | multi_choice | text | list,
+options?[], default?, basis? }`. Returns `answers = { field_answers[] }`; `field_answer = { field_id, value }` — one
+answer per field id, in `fields[]` order. `options[]` belongs to `choice` / `multi_choice` alone; a `text` or `list`
+field carrying one is a caller bug, never rendered as a control it did not ask for.
+
+**This surface asks for a fact, never for a verdict.** `review.collect` puts something the run already built in front
+of the rep to judge; `input.collect` asks for what the run could not derive and cannot proceed without — who is on the
+call and when, which companies may see a shared room, how a named tool connects. The two are never substituted for each
+other, and a question of this shape gets this surface rather than a newly invented one.
+
+**Every field accepts a `default`, and that is the whole point.** Where the run can already work the answer out, the
+ask arrives pre-filled and the rep confirms it in one action instead of composing a reply. A default the run *derived*
+carries a `basis` naming what it came from, so a pre-filled answer is never an unexplained one (Article IV — cite it or
+do not offer it); a default the caller was simply given carries none. A `default` is a **proposal, not a recorded
+answer**: it becomes the rep's answer only when the rep confirms it.
+
+**On this runtime the whole ask is typed, and the contract survives that intact.** With no capture channel observed
+here, the fields are asked in chat — one numbered line each, every default stated as the proposed answer — and the rep
+confirms in one reply. Confirming every proposal at once is one turn, exactly as pressing Submit is one click, so the
+capability's promise holds on the fallback rather than depending on a widget. **An answer given is an answer; no reply
+is no answer.** A rep who confirms returns every field, the pre-filled ones included; an ask that draws no reply
+returns **no** `field_answers[]` at all and is never filled in from its own defaults. A field left unanswered that
+carries no default returns **no entry** — unanswered, never an empty string. Free text that cannot be read as its
+field's `kind` → ask, never a guess.
+
+**Write-free, like every other capture surface.** This capability introduces no writer and no write scope: the answers
+are held in-session and handed back to the calling skill, which may do with them only what its own declared authorities
+already allow. **No `feedback-log.jsonl` line is written** — `capture-feedback` remains exclusively the run loop's
+prioritization instrument. ADR-1 field parity holds: the same fields, the same order, the same stated defaults on
+whichever surface the ask arrives.
 
 ## render.slate
 
@@ -305,7 +391,10 @@ keeps `render.email_draft`) uses that one instead.
 `stage_recommendation { recommendation, to_stage, criteria[], unmet[], reason }`, the verbatim-carried `next_step`,
 `product_gaps[]`, and the optional `qualification { framework, fields[]: { field, status: captured|missing,
 evidence?, updated }, gaps[]: { field, coach } }` block when Step 6.5 emitted one) plus the persisted
-`drafts/YYYY-MM-DD-crm-update.md` `filename`; nothing is re-evaluated at render time. **Informational only:** zero
+`drafts/YYYY-MM-DD-crm-update.md` `filename` and `state: simulated | pending | synced`. On a write branch it also carries
+`target?: { object, crm_ref }`, `payload_fields[]?: { api_field, mode: replace | append, value, truncated }`,
+`dropped[]?: { field, reason, defect }` and `receipt?: { provider, receipt_id, target_ref, applied_at }` — every one a
+projection of what BIND and APPLY already produced, absent on `simulated`; nothing is re-evaluated at render time. **Informational only:** zero
 affordances, returns nothing; no `review.collect` call follows, no `capture-feedback` line is written, and silence
 has no meaning here. Content rules: exactly one recommendation — `advance to <stage>` / `no change` /
 `not applicable — <reason>`; a met exit criterion carries its source-prefixed citation, an unmet one reads
@@ -314,16 +403,49 @@ has no meaning here. Content rules: exactly one recommendation — `advance to <
 next step, headed by an `N of M captured` count line (a count, never a percentage, score, or health grade), one line
 per field in declaration order, coach hints verbatim from `gaps[].coach`; with no `qualification` block the section
 is omitted entirely; the carried `next_step` renders in one line (or its explicit no-next-step reason); one cited
-bullet per product gap, or the honest `none raised this run` line when empty. Because no write capability is
-confirmed bound in this runtime, this surface is always reached through `write-crm`'s **simulate** branch: the
-persisted filename is cited in chat with the explicit statement that **nothing was written to any external system**.
-The stage recommendation stays advisory — ENRICH remains the sole stage writer.
+bullet per product gap, or the honest `none raised this run` line when empty. Exactly one header pill, keyed to
+`state`: amber `simulated · not written`, amber `pending approval · nothing written yet`, teal `synced · written to CRM`
+— amber for the first two because both carry the same fact, that nothing has left the machine. Those six blocks are
+**branch-invariant**: same order, same positions, on every state. Three blocks **trail** them, each **omitted entirely**
+where its state or its list says so — never an empty heading, never a placeholder line. `state` is always `simulated`
+on this runtime, because no CRM write capability is confirmed bound here (see the write row below): every optional field
+is absent, the three trailing blocks do not render, and the persisted filename is cited in chat with the explicit
+statement that **nothing was written to any external system**. Should a write branch ever be reached here, `pending` and `synced` render the payload — one row per
+`payload_fields[]` entry under this CRM's own API field name with its `mode` named beside it, an append rendering the
+**complete composed value** and a truncated value stating the truncation — then the **complete** drop list beneath it
+under a heading stating these were not written by this deployment, one line per `dropped[]` entry naming the field and
+the reason, a `defect` entry marked distinctly from an ordinary drop, never summarised to a count, nothing at all where
+the list is empty; and on `synced` only, the normalized `receipt` in one compact muted audit block, last. `state` is the
+consuming skill's to pass and is never inferred here: a decline or silence renders `simulated` and never leaves a
+`pending` pill standing, and `synced` renders **only** once a sync record has been written. The stage recommendation
+stays advisory — ENRICH remains the sole stage writer — and this capability carries **no** affordance on any state.
 
+## render.task_push
+
+`task_push_view = { destination { container_id, container_name? }, payloads[]: { task_id, operation: create | update,
+title, body_lines[], outbound_status, marker, unresolved_prior_attempt } }` — a projection of the payloads the
+task-manager push seam's PREPARE beat already built; nothing is re-read, re-derived or re-evaluated at render time, and
+the link table is never re-consulted for `operation`. `title` is the **outbound** title under the declared naming
+convention, placeholders resolved — the card must show what lands. `body_lines[]` is the outbound body **verbatim, in
+send order**, and renders **complete** — never elided, never summarised, never truncated. `outbound_status` is the image
+of the local status under the map in force; a status with no image renders the honest `no image in the map — status not
+sent` line rather than a guess. `marker` renders **last**, because it is the last line of the body. `container_name` is
+narration; `container_id` is the only addressing value, and shows alone where it is all that is known.
+**Informational only:** zero affordances, returns nothing; no `review.collect` call follows, no `capture-feedback` line
+is written, and silence has no meaning here — the approval stays typed, one payload at a time, at the walk's own ask.
+Card text rules: a header carrying the `Tasks to push` label, the destination line and an amber `queued · nothing sent`
+pill; then one block per payload **in the plan's priority order** — an operation pill, the outbound title as its
+heading, the distinctly-marked unresolved-prior-attempt row where that flag is set, every `body_lines[]` entry whole,
+the `will land as <outbound_status>` line, and the muted marker line last; then an `N tasks queued` footer — a count,
+never a percentage, score, or health grade. An **empty candidate set renders no widget at all**, the rule `render.slate`
+already carries for an empty slate. Fallback, ADR-1 field parity: the same payloads **in full** — every body line and
+every marker, one section per payload, in the same priority order. It is never a summary.
 ## render.connections
 
-`connections_view = { capabilities[]: { capability, status: connected|missing|degraded, tool?, consequence },
-verdict: { ready: true } | { ready: false, exceptions[]: { what, unlocks } } }` — the capability status board
-`skills/standalone/connect-tools.md` assembles from its introspection pass (both entries); nothing is re-evaluated
+`connections_view = { capabilities[]: { capability, status: connected|missing|degraded, tool?, consequence, connect? },
+connect = { what, where, unlocks }; write_policy?: { authority: verified|mismatch|unverified|absent, declared?, observed?,
+findings[]: { name, declared, observed, consequence, severity: gap|note } }; verdict: { ready: true } | { ready: false, exceptions[]: { what, unlocks } } }` — the capability status board
+`resources/connect-tools.md` assembles from its introspection pass (both entries); nothing is re-evaluated
 at render time. `tool` is a concrete name arriving **from the live environment** (environment → conversation → this
 file — never from skill prose, ADR-6); `consequence` is the run-time cost of a gap in the honest-degradation voice.
 Board content rules: one status row per capability — name, status (`connected | missing | degraded`), the serving
@@ -331,18 +453,24 @@ Board content rules: one status row per capability — name, status (`connected 
 `READY TO RUN`, or `READY EXCEPT` with one what/unlocks line per exception. Run against this file **before the Epic 3
 enumeration records observations**, the honest board reports every external read `missing` with its degradation as
 the consequence — that verdict is the truth about an unenumerated runtime, not a defect. **Render-only, conveys
-nothing back:** binding-change verdicts flow through `review.collect` items of kind `binding_change`, never through
-this surface. For a declared write-scoped row, `tool` reports live inventory presence independently of the status:
-a present tool with no recorded eligibility path renders `degraded` with production writes disabled and close-out
-simulated; `connected` is reserved for a positively confirmed, production-eligible mapping.
+nothing back:** zero affordances, no verdict, no write. There are no binding verdicts to carry — `connect-tools` binds
+what it can resolve without asking (see that skill's Procedure).
+
+`connect` is present on every `missing` row and on any `degraded` row a connector would fix, and it is the actionable
+half of the board: `what` names the connector in the words the rep will see in their own settings UI (never a raw tool
+name), `where` is the concrete place they go to add it on this runtime, and `unlocks` is the capability they get back,
+stated as behavior. It is guidance the rep can follow without a further question — never a prompt, and never a step the
+skill waits on. A row with no available connector carries no `connect` and says so in its `consequence` instead.
+
 
 ## render.setup_progress
 
 `progress_view = { mode: first-run|refresh|resume, sections[]: { id: process|messaging|assets|voice|state,
 status: done|active|pending | proposed-changes(n), title?, why?, coverage_note? } }` — the section checklist
 `skills/setup-unbound.md` renders at its opening, after each section, on resume, and as the refresh audit view;
-nothing is re-evaluated at render time. The section-id enum is fixed in D9 order — the same enum `review.collect`'s
-`context_section` `task_id` slot carries. `title` and `why` are optional rep-facing strings owned by
+nothing is re-evaluated at render time. The section-id enum is fixed in D9 order — `state` is
+progress-only, never a `review.collect` `task_id`.
+`title` and `why` are optional rep-facing strings owned by
 `skills/setup-unbound.md`'s step-1 table; this file never restates them. Content rules: one mode line at the top;
 one row per section in D9 order, carrying the section `title` as its heading (the `id` verbatim when absent), its
 status, the muted `why` line when present, and the muted `coverage_note` beneath it when present; an absent optional

@@ -1,6 +1,6 @@
 interface:
   display_name: Connect Tools
-  short_description: Dual-entry environment readiness check.
+  short_description: Dual-entry environment readiness check that binds the rep's tools for them.
   brand_color: '#0E0F12'
 policy:
   allow_implicit_invocation: true

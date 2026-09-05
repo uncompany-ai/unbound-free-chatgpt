@@ -15,12 +15,26 @@
   { current_stage, stage_recommendation { recommendation, to_stage, criteria[],
   unmet[], reason }, next_step, product_gaps[], qualification? { framework,
   fields[]: { field, status: captured|missing, evidence?, updated }, gaps[]:
-  { field, coach } }, filename }; the FILENAME IS
-  CITED IN CHAT alongside the widget (it is not part of the fragment), together
-  with the explicit nothing-was-written-externally statement.
+  { field, coach } }, filename, state: simulated|pending|synced }; the FILENAME
+  IS CITED IN CHAT alongside the widget (it is not part of the fragment),
+  together with the state's own chat statement.
 
-  LAYOUT (fixed order): header row ("CRM Updates" + amber "simulated · not
-  written" pill) · Stage block (current stage + recommendation pill) · Exit
+  STATE — one of three, and the header pill and screen-reader description are
+  both keyed to it. `simulated`: nothing was sent and nothing will be on this
+  branch. `pending`: a real write is queued and the rep has not answered yet.
+  `synced`: the write landed and its sync record was written. On `simulated`
+  the four write-branch-only fields below are ABSENT and this card renders
+  exactly as it always has — same pill, same screen-reader string, none of the
+  three trailing blocks.
+
+  WRITE-BRANCH-ONLY FIELDS, each a projection of what the consuming skill's
+  BIND and APPLY beats already produced — nothing is re-derived at render time:
+  target? { object, crm_ref } · payload_fields[]? { api_field, mode:
+  replace|append, value, truncated } · dropped[]? { field, reason, defect } ·
+  receipt? { provider, receipt_id, target_ref, applied_at }.
+
+  LAYOUT (fixed order): header row ("CRM Updates" + the state pill) · Stage
+  block (current stage + recommendation pill) · Exit
   criteria list (one row per criterion: met/unmet pill + criterion text +
   source-prefixed citation when met — an `inferred:` basis renders as-is,
   muted/italic, never dressed as a citation; unmet reads "no evidence this
@@ -32,23 +46,42 @@
   source-prefixed citation in muted italic on captured rows and
   "Missing: <field>" + the verbatim coach hint on missing rows) · Next Step
   block (one line, or the explicit no-next-step reason) · Product Gaps (one
-  cited bullet per gap; honest "none raised this run" when empty).
+  cited bullet per gap; honest "none raised this run" when empty) · Payload
+  block (pending + synced only) · Dropped block (pending + synced only,
+  omitted when dropped[] is empty) · Receipt block (synced only).
+
+  Those first six blocks are BRANCH-INVARIANT: they keep this order and these
+  positions on every state, and the three new blocks TRAIL them. The rep reads
+  the reasoning, then what it turns into, then what was cut, then the proof.
 
   NO BUTTONS, NO INPUTS — this widget carries zero affordances and causes no
-  write (ADR-4/ADR-9). It is INFORMATIONAL ONLY: no `review.collect` call, no
-  verdict, no `capture-feedback` line — silence has no meaning here. The rep
-  applies the update to their real CRM manually if they agree; the "simulated ·
-  not written" pill states exactly that. Fallback surface (the plain in-chat
-  Markdown "CRM Updates (simulated)" section) carries the same fields — ADR-1
-  field parity.
+  write (ADR-4/ADR-9), ON EVERY STATE, `pending` included. It is INFORMATIONAL
+  ONLY: no `review.collect` call, no verdict, no `capture-feedback` line —
+  silence has no meaning here. A queued external write is exactly where an
+  Accept button is most tempting and most forbidden; the approval is typed in
+  chat, and this card only makes that decision informed. The rep applies a
+  simulated update to their real CRM manually if they agree; the "simulated ·
+  not written" pill states exactly that. Every interpolated string is
+  HTML-escaped. Fallback surface (the plain in-chat Markdown CRM-updates
+  section) carries the same fields, state included — ADR-1 field parity.
   ═══════════════════════════════════════════════════════════════════════════
 -->
 <div>
 <h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
-<!-- {{SR_DESCRIPTION}} names the item + recommendation + simulated state for
-     screen readers, e.g. "Simulated CRM update for Calla and Vale: stage
-     technical-validation, recommendation no change, not written to any
-     external system" -->
+<!-- {{SR_DESCRIPTION}} — exactly one, keyed to crm_view.state. Each variant
+     states the state IN WORDS, because a screen-reader user gets no pill and
+     colour carries none of it. N = payload_fields[] length.
+       simulated: "Simulated CRM update for {{ITEM}}: stage {{CURRENT_STAGE}},
+                  recommendation {{RECOMMENDATION}}, not written to any
+                  external system"
+       pending:   "CRM update for {{ITEM}} pending your approval: stage
+                  {{CURRENT_STAGE}}, recommendation {{RECOMMENDATION}}, {{N}}
+                  fields to write, nothing written yet"
+       synced:    "CRM update for {{ITEM}} written to the CRM: stage
+                  {{CURRENT_STAGE}}, recommendation {{RECOMMENDATION}}, {{N}}
+                  fields written, receipt {{RECEIPT_ID}}"
+     The unconditional "not written to any external system" assertion belongs
+     to the simulated variant alone — it is false on the other two. -->
 <div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
 
   <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
@@ -56,7 +89,16 @@
       <div style="width:32px; height:32px; border-radius:999px; background:var(--c-blue-50,#E6F1FB); color:var(--c-blue-800,#0B3D66); display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="ti ti-database" style="font-size:16px;"></i></div>
       <p style="font-size:14px; font-weight:600; margin:0;">CRM Updates</p>
     </div>
-    <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px; white-space:nowrap;">simulated &middot; not written</span>
+    {{STATE_PILL}}
+    <!--
+      {{STATE_PILL}} — exactly one, keyed to crm_view.state. Amber for both
+      simulated and pending, because both carry the same fact: nothing has left
+      the machine. Teal for synced, joining the existing affirmative family. No
+      new colour is introduced.
+        simulated: <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px; white-space:nowrap;">simulated &middot; not written</span>
+        pending:   <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px; white-space:nowrap;">pending approval &middot; nothing written yet</span>
+        synced:    <span style="background:var(--c-teal-50,#E1F5EE); color:var(--c-teal-800,#0A5C43); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px; white-space:nowrap;">synced &middot; written to CRM</span>
+    -->
   </div>
 
   <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-bottom:10px;">
@@ -162,6 +204,83 @@
         <p style="font-size:13px; color:var(--text-muted); margin:0;">none raised this run</p>
     -->
     {{PRODUCT_GAPS}}
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-top:10px;">
+    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 6px;">{{PAYLOAD_HEADING}}</p>
+    <!--
+      PAYLOAD AREA — pending and synced ONLY. OMIT this whole block on
+      simulated: never an empty heading, never a placeholder line — the same
+      omit-entirely rule the Qualification block above already carries.
+      {{PAYLOAD_HEADING}} reads "What will be written" on pending and "What was
+      written" on synced. One row per payload_fields[] entry, in the order BIND
+      projected them, each under this CRM's OWN API field name — the card shows
+      what the CRM will receive, never the logical value it was derived from.
+      Row shape:
+        <div style="display:flex; gap:8px; align-items:flex-start; margin:0 0 8px;">
+          <span style="background:var(--c-gray-50,#F1EFE8); color:var(--c-gray-800,#3F3D38); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">{{MODE}}</span>
+          <div>
+            <p style="font-size:13px; margin:0; overflow-wrap:anywhere;"><span style="font-family:ui-monospace,monospace; font-size:12px; color:var(--text-muted);">{{API_FIELD}}</span> {{VALUE}}</p>
+            <p style="font-size:12px; font-style:italic; color:var(--text-muted); margin:2px 0 0;">{{TRUNCATION_NOTE}}</p>
+          </div>
+        </div>
+      {{MODE}} is the entry's literal `replace` or `append` — the mode is named
+      beside EVERY field, so a rep never has to infer it from the policy. An
+      append row's {{VALUE}} is the COMPLETE COMPOSED VALUE BIND produced,
+      never the addition alone. The {{TRUNCATION_NOTE}} line renders only on
+      truncated: true, and states the truncation. Values wrap; they never
+      scroll horizontally — a value the rep has to scroll to reach is a value
+      they did not see before approving it.
+    -->
+    {{PAYLOAD_ROWS}}
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-top:10px;">
+    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 6px;">Not written by this deployment</p>
+    <!--
+      DROPPED AREA — pending and synced ONLY, and only where dropped[] is
+      non-empty. OMIT this whole block otherwise: never an empty heading, never
+      a "nothing dropped" line. The list renders COMPLETE — never summarised to
+      a count, and never moved into chat narration while the payload sits on
+      this card, because the rep decides here and so sees the whole decision
+      here. One row per dropped[] entry. Row shapes:
+
+      ordinary drop (defect: false — the field is simply not in this
+      deployment's field map, and the write proceeds without it):
+        <div style="display:flex; gap:8px; align-items:flex-start; margin:0 0 8px;">
+          <span style="background:var(--c-gray-50,#F1EFE8); color:var(--c-gray-800,#3F3D38); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">not written</span>
+          <div>
+            <p style="font-size:13px; margin:0;">{{FIELD}}</p>
+            <p style="font-size:12px; font-style:italic; color:var(--text-muted); margin:2px 0 0;">{{REASON}}</p>
+          </div>
+        </div>
+
+      defect drop (defect: true — the payload and the policy's Never Write list
+      disagree, and someone should hear about it). Marked DISTINCTLY from an
+      ordinary drop, never blended into the same pill:
+        <div style="display:flex; gap:8px; align-items:flex-start; margin:0 0 8px;">
+          <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">defect</span>
+          <div>
+            <p style="font-size:13px; margin:0;">{{FIELD}}</p>
+            <p style="font-size:12px; font-style:italic; color:var(--text-muted); margin:2px 0 0;">{{REASON}}</p>
+          </div>
+        </div>
+    -->
+    {{DROPPED_ROWS}}
+  </div>
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-top:10px;">
+    <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 4px;">Receipt</p>
+    <!--
+      RECEIPT AREA — synced ONLY. OMIT this whole block on simulated and on
+      pending: a pending write has no receipt, and an empty one would claim a
+      landing that has not happened. Compact, muted and LAST, because it is for
+      checking and auditing, not for deciding. The NORMALIZED receipt only —
+      provider key, receipt_id, target_ref, applied_at. No raw provider
+      response, no credential and no token reaches this card on any state.
+        <p style="font-size:12px; color:var(--text-muted); margin:0; overflow-wrap:anywhere;">{{PROVIDER}} &middot; receipt {{RECEIPT_ID}} &middot; {{TARGET_REF}} &middot; {{APPLIED_AT}}</p>
+    -->
+    {{RECEIPT_BLOCK}}
   </div>
 
 </div>

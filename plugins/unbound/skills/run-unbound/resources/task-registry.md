@@ -23,9 +23,11 @@ re-implements it. Consistent with ADR-1 the registry is natural-language Markdow
 nothing here introduces an external write — that is this artifact's own rule and the Handler
 Contract's (Part B), not a consequence of ADR-4 or any wider prohibition.
 
-> **Consumed by (point, don't copy).** `run-unbound` Step 4 reads this table at dispatch time and
-> resolves exactly two outcomes per accepted task (`execute` the named handler / `define-only`
-> not walked — recapped as a rep-owned action item). `work-account` derives its `type` enum from this table and emits only
+> **Consumed by (point, don't copy).** `run-unbound` Step 4 reads this table twice over, in the
+> two-gate walk: as the **filter** on the tasks the rep accepted at the list gate (`execute` enters
+> the walk / `define-only` never does — recapped as a rep-owned action item), and then, for each
+> task that did enter, at dispatch time behind that task's own gate, which decides whether the named
+> handler runs at all. `work-account` derives its `type` enum from this table and emits only
 > types in it — no independent list; at synthesis it also reads each row's `when` as typing guidance,
 > the one column the loop never reads. `run-unbound` Step 4 dispatches per this registry by pointer
 > and embeds no copy — this registry is the sole statement of the type set (see "Distribution and
@@ -74,11 +76,11 @@ The artifact states these rules; the loop and the synthesizer honor them.
   blank. An absent or unrecognized `mode` is read as `define-only` (define-only-by-default holds by
   construction).
 - **`invocation` defaults to `per-task`, surfacing a malformed value (NFR8).** On `execute` rows
-  only, `invocation` sets artifact cardinality: **`per-task`** (the handler runs for every accepted
+  only, `invocation` sets artifact cardinality: **`per-task`** (the handler runs for every verdicted
   task — N tasks → N artifacts) or **`once-per-run`** (the handler runs at most once per item per run
   — N tasks → 1 consolidated artifact; the handler self-folds its sibling tasks). When `invocation`
   is **absent or malformed** on an `execute` row, it **defaults to `per-task`** — the conservative
-  default that never silently skips an accepted task — and the **malformed value is surfaced**, not
+  default that never silently skips an execute-verdicted task — and the **malformed value is surfaced**, not
   swallowed. `define-only` rows leave `invocation` blank.
 - **Unknown type → define-only `internal`, no fabrication (FR10).** A `type` matching **no** row is
   handled as `define-only` (surfaced as `internal`). The loop **never invents** a handler, an
@@ -174,7 +176,7 @@ canonical file. The overlay composes onto core; core stays immutable and re-pinn
   resolving its capabilities in-skill instead of through `runtime/tool-bindings.md`. Read, render,
   and write scopes may all be declared; every row carries a **mandatory Fallback** that degrades
   honestly when its tool is absent, because nothing centrally checks these rows. A write-scope row
-  fires only inside an accepted task's turn — the Step 3.5 accept stays the one gate (ADR-12), and
+  fires only inside an execute-verdicted task's turn — Step 3.5 stays the one gate (ADR-12), and
   this clause moves it nowhere.
 
 ---
@@ -244,7 +246,8 @@ procedure honors these steps **in this order**:
 
 One log line **per cycle**, append-only — a changed mind is a new line, never a rewrite. The loop is
 **rep-bounded by construction**: every cycle requires a rep turn, so no handler-side iteration and
-no cycle cap is needed or permitted. Accept ends it; silence ends it with nothing further written,
+no cycle cap is needed or permitted. This gate keeps its own accept/edit/reject
+enum — an artifact is judged, never executed. Accept ends it; silence ends it with nothing further written,
 the artifact at its last applied state, narrated honestly as abandoned rather than as accepted.
 
 Presenting the artifact and collecting its verdict is **the loop's obligation, not the handler's**:
@@ -257,13 +260,38 @@ not write anything itself. This clause is **additive**, framed exactly as the Tu
 above frames its own: no existing handler becomes non-conforming by it, and **a client pack conforms
 by doing nothing**.
 
+**A declared capability specializes the view; it never makes it plainer.** A handler may name its own
+render capability, but only to declare a **richer** card than `render.artifact`'s — its own sections,
+shaped for that artifact kind. That capability still **resolves to at least `render.artifact`'s
+surface wherever the widget surface is bound**: a rendered preview carrying the same Accept / Reject
+/ free-text-edit footer and returning the same verdict. Plain chat is that row's **Fallback**, taken
+only where the widget surface is absent or unconfirmed — **never the surface it declares**. A row
+declaring an in-chat render has specialized nothing — it opts one artifact out of the review surface
+every other type inherits for free, and it is the one shape this clause forbids. A handler with no
+richer card to declare names **no** capability at all.
+
+### Input collection (MUST — the question is put on a form, not typed into chat)
+
+**A declared capability specializes the question; it never makes it plainer.** A handler that must
+settle facts before it can compose — who is joining and when, which of two readings the evidence
+supports — asks through **`input.collect`**: one row per field, every derivable answer pre-filled as
+a proposal, one submit. A handler may name its own ask capability, but only to declare a **richer**
+form than `input.collect`'s — its own fields, shaped for that question. That capability still
+**resolves to at least `input.collect`'s surface wherever the form surface is bound**: the same
+pre-filled fields, returning one answer per field id. Plain chat is that row's **Fallback**, taken
+only where the form surface is absent or unconfirmed — **never the surface it declares**. A row
+declaring an in-chat ask has specialized nothing — it opts one question out of the pre-filled form
+every other ask inherits for free, and it is the one shape this clause forbids. A handler with no
+richer form to declare names **no** capability at all. This clause is **additive**, framed exactly
+as the Output-edit clause above frames its own: **a client pack conforms by doing nothing**.
+
 ### May assume (gate precondition, FR19)
 
-- The handler is invoked **only after an accept** (or accept-after-edit) collected in
-  `run-unbound`'s **plan-triage submission**. It may **assume** that accept has happened.
-- It **never drafts or acts absent that accept**, and it **never re-implements gating** — the gate is
-  owned once by the loop (ADR-12). On a reject or no-verdict the loop simply never invokes the
-  handler.
+- The handler is invoked **only after an `execute` verdict** (or execute-after-edit) collected in
+  `run-unbound`'s **plan-triage submission**, and may **assume** it happened.
+- It **never drafts or acts absent that verdict**, and it **never re-implements gating** — the gate
+  is owned once by the loop (ADR-12). On any other verdict, or none, the loop simply never invokes
+  the handler.
 - Only the **collection point** moved (from a per-task checkpoint to the one batch triage
   submission); the guarantee itself is unchanged.
 
@@ -275,6 +303,14 @@ row — e.g. `followup_email` ⇒ `draft_email`). If the contract does **not** h
 `proposed_action` that doesn't match), the handler **no-ops cleanly**: it writes nothing, touches no
 `drafts/`, states briefly in chat that no action was warranted, and hands back.
 
+Where the type's registry row asserts a **workspace-state precondition** — an artifact that must, or
+must not, already be on file for the item — the handler verifies that too, at the same gate and
+**before any rep-facing work**: before a question, a prompt, or a partial draft. A precondition
+discovered at a handler's last step has already spent the rep's attention on work that cannot land.
+On failure it no-ops cleanly exactly as above, and **names the type whose row creates what is
+missing**, so the rep learns the next move rather than only the refusal. This clause is **additive**:
+no existing handler becomes non-conforming by it, and **a client pack conforms by doing nothing**.
+
 ### Invocation behavior (per its registry `invocation` value — ADR-13 / D4)
 
 The handler behaves consistently with the `invocation` value its Part A row declares:
@@ -284,8 +320,7 @@ The handler behaves consistently with the `invocation` value its Part A row decl
   never a second artifact), and is **idempotent-by-date** (re-running the same day rewrites that
   day's file). *(Example: `draft-followup` folds every `followup_email` ask into one email per item
   per run.)*
-- **`per-task`** — the handler acts **only on its `source_task`** (N accepted tasks of the type →
-  N invocations → N artifacts). It does not self-fold or fan out.
+- **`per-task`** — the handler acts **only on its `source_task`** (N such tasks → N artifacts). It does not self-fold or fan out.
 
 ### Turn accounting (the loop's obligation, not the handler's)
 
@@ -312,7 +347,7 @@ The handler handles **one** task end-to-end for the one item, then **hands back 
 
 ### Reference example (not the spec)
 
-`draft-followup` (at `unbound/skills/handlers/draft-followup.md`) is the worked example of this
+`draft-followup` (at `resources/7-draft-followup.md`) is the worked example of this
 contract — the `followup_email` handler, `execute` / `once-per-run`, triggered on
 `proposed_action: draft_email`, writing one local email draft under `drafts/`. Its
 **APPLY-DRAFT-EDIT** is likewise the worked example of the Output-edit clause: bounded to `to[]` /
@@ -328,13 +363,15 @@ This file is the **declarative authority**; dispatch behavior lives in `run-unbo
 reads it. Where each consumer stands today:
 
 - **`run-unbound` Step 4** — dispatches per this registry by pointer and embeds no copy of the
-  Part A table; this registry is the sole statement of the type set. Step 4 now dispatches over
-  **accepted** tasks only — the approval gate moved to `run-unbound` Step 3.5. Unchanged either
-  way: this artifact declares *whether* a type executes, never *how* it is gated.
+  Part A table; this registry is the sole statement of the type set. Step 4 walks the tasks the rep
+  **accepted** at the Step 3.5 list gate whose row here is `mode: execute`, and dispatches a handler
+  only where that task's own gate — asked at its turn, immediately before dispatch — returns
+  `execute`. Unchanged across every move that gate has made: this artifact declares *whether* a type
+  executes, never *how* it is gated.
 - **`work-account`** — derives its `type` enum from Part A and emits only types in it; it asserts
   no independent list.
 - **`draft-followup`** — the reference `execute` handler, conforming to Part B; lives at
-  `unbound/skills/handlers/draft-followup.md`.
+  `resources/7-draft-followup.md`.
 - **`.claude/skills/` mirror + cowork bundle** (`dist/cowork-skills/`) — this artifact ships to both
   via `runtime/build-cowork-bundle.sh`: a mirror entry on Claude Code and `resources/task-registry.md`
   inside `run-unbound.zip` on Cowork. Rebuild after any edit here; `--check` guards drift.

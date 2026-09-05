@@ -4,16 +4,18 @@
   `review.collect(checkpoint_view)` calls.
 
   Generalized from an approved reference design. Rendered as ONE visualize widget fragment
-  per call — ONE ITEM PER CALL. Surviving roles: the material-edit re-confirm at
-  run-unbound Step 3.5 (the one re-shaped task, after an edit that changed what the
-  task is) and the setup-time `context_section` / `binding_change` kinds; batch plan
+  per call — ONE ITEM PER CALL. Roles: the TASK GATE at run-unbound Step 4a (one
+  accepted, mode: execute task at its own turn, gated BEFORE its handler is
+  invoked); the material-edit re-confirm at run-unbound Step 3.5 (the one
+  re-shaped task, after an edit that changed what the task is); and the
+  setup-time `context_section` kind. Batch plan
   triage is batch-triage-widget.html's, not this card's. One top-level <div>, first
   child h2.sr-only (widget-fragment constraints, resources/tool-bindings.md
   "Visualize protocol"). Inline styles only; Cowork CSS vars with hex fallbacks.
 
   CARD BODY (fixed order): header row (P# badge + type pill + title) · rationale
   paragraph · Evidence block · two-column context grid · footer affordances
-  (Accept / Reject buttons + free-text edit input).
+  (the call site's verdict buttons + free-text edit input).
 
   P# BADGE / TYPE PILL — same keys as task-plan-widget.html:
     P1 amber (#FAEEDA/#633806) · P2 purple (#EEEDFE/#3C3489) · P3+ gray (#F1EFE8/#444441);
@@ -36,9 +38,18 @@
   Only grounded fields render — an absent context field is omitted, never padded.
 
   sendPrompt GRAMMAR (verdicts — see resources/tool-bindings.md "sendPrompt grammar"):
-    Accept button (accent border = primary action) → sendPrompt('Accept task {{ID}} ({{TITLE_FLATTENED}})')
-    Reject button                                  → sendPrompt('Reject task {{ID}} ({{TITLE_FLATTENED}})')
-    Edit input + Submit                            → sendPrompt('Edit task {{ID}}: ' + value), ONLY when value is non-empty
+    The verdict buttons are SCOPED BY CALL SITE — the sites no longer share an enum.
+    Step 4a, the per-task gate (always kind: "task", always mode: execute — the walk
+    admits no other, so NO BUTTON IS EVER OMITTED here):
+      Execute button (accent border = primary action) → sendPrompt('Execute task {{ID}} ({{TITLE_FLATTENED}})')
+      Defer button                                    → sendPrompt('Defer task {{ID}} ({{TITLE_FLATTENED}})')
+      Cancel Task button                              → sendPrompt('Cancel task {{ID}} ({{TITLE_FLATTENED}})')
+    Step 3.5 material-edit re-confirm (kind: "task", asking the PLAN question again on a
+    re-shaped card) and kind: "context_section" (the setup-time kinds) — same two buttons:
+      Accept button (accent border = primary action) → sendPrompt('Accept task {{ID}} ({{TITLE_FLATTENED}})')
+      Reject button                                  → sendPrompt('Reject task {{ID}} ({{TITLE_FLATTENED}})')
+    Every site:
+      Edit input + Submit                            → sendPrompt('Edit task {{ID}}: ' + value), ONLY when value is non-empty
     Every string is SELF-DESCRIBING (names the task id AND title) — a click sends
     plain text with no widget identity attached. {{ID}} is the persisted task id
     (t1, t2, …) and is AUTHORITATIVE; the title is legibility/disambiguation only.
@@ -50,9 +61,11 @@
 -->
 <div>
 <h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
-<!-- {{SR_DESCRIPTION}} names the task + affordances for screen readers, e.g.
-     "Checkpoint for task P1: send pricing and packaging guide plus clienteling
-      expansion options, with accept, reject, and edit actions" -->
+<!-- {{SR_DESCRIPTION}} names the task + the affordances THIS call site renders, e.g.
+     at Step 4a: "Task gate for task P1: send pricing and packaging guide plus
+      clienteling expansion options, with execute, defer, cancel task, and edit
+      actions"; at the Step 3.5 re-confirm and the setup-time kinds, the same
+      sentence ending "with accept, reject, and edit actions". -->
 <div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
 
   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
@@ -80,10 +93,20 @@
     </div>
   </div>
 
+  <!-- VERDICT ROW — the Step 4a per-task gate. All three always render: the walk
+       admits mode: execute tasks only, so Execute is always a real option here. -->
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button onclick="sendPrompt('Execute task {{ID}} ({{TITLE_FLATTENED}})')" style="border-color:var(--border-accent, var(--border-strong));">Execute</button>
+    <button onclick="sendPrompt('Defer task {{ID}} ({{TITLE_FLATTENED}})')">Defer</button>
+    <button onclick="sendPrompt('Cancel task {{ID}} ({{TITLE_FLATTENED}})')">Cancel Task</button>
+  </div>
+  <!-- VERDICT ROW — the Step 3.5 material-edit re-confirm and kind: "context_section".
+       Render THIS row instead of the one above.
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button onclick="sendPrompt('Accept task {{ID}} ({{TITLE_FLATTENED}})')" style="border-color:var(--border-accent, var(--border-strong));">Accept</button>
     <button onclick="sendPrompt('Reject task {{ID}} ({{TITLE_FLATTENED}})')">Reject</button>
   </div>
+  -->
   <div style="display:flex; gap:8px; margin-top:8px;">
     <input id="{{ID}}-edit" type="text" placeholder="Propose an edit to this task instead" style="flex:1;">
     <button onclick="var v=document.getElementById('{{ID}}-edit').value; if(v){sendPrompt('Edit task {{ID}}: ' + v);}">Submit edit</button>

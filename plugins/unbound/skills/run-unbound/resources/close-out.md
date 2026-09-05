@@ -22,13 +22,16 @@ do **not** re-review tasks here — and any artifact verdict already happened du
     only where the call/context supports it.
   - `{ proposed: false, reason }` → "**No next step** — <reason>." State it honestly; never
     manufacture a step or a date.
-- **Outcome recap.** One terse line per ranked task carrying its triage verdict (accepted /
-  edited / rejected / no verdict) **and** its execution result: for a walked task whose handler
-  wrote an artifact, that artifact's filename plus its verdict, already captured at the task's own
-  turn (see EXECUTE TASKS); for an accepted define-only task, an explicit rep-owned action item
-  (this is where it surfaces — it took no turn in the walk); for a rejected or no-verdict task,
-  its outcome stated plainly, never silently skipped. No re-ranking, no re-presenting of full
-  task bodies, no re-review — the review already happened at Step 3.5.
+- **Outcome recap.** One terse line per ranked task carrying its outcome in the vocabulary the two
+  gates actually wrote (executed / deferred / cancelled / rejected at the list gate / edited / no
+  verdict) **and** its execution result: for a walked task whose
+  handler wrote an artifact, that artifact's filename plus its verdict, already captured at the
+  task's own turn (see EXECUTE TASKS); for a **deferred** task and for a define-only task, an
+  explicit rep-owned action item, stated as still open and carrying forward (this is where it
+  surfaces — it took no turn in the walk); for a cancelled, rejected or no-verdict task, its outcome
+  stated plainly, never silently skipped — a task removed at either gate is named as off the list,
+  not as done. No re-ranking, no re-presenting of full task bodies, **and nothing re-collected here**:
+  every verdict this recap cites was captured at its own gate, and close-out only reads it back.
   - **A carried task names its origin on that same line** — the plan date it came from and its
     carry count, read off the `carried_from` block the plan carries ("carried from 2026-07-28,
     2nd carry"), alongside the verdict and execution result every other task gets. A carried task
@@ -43,7 +46,7 @@ do **not** re-review tasks here — and any artifact verdict already happened du
     does not. Never derive an artifact claim from the marker alone: `handled_on` is set for a
     clean handler no-op too (Step 4), so it says the turn was spent and nothing more.
     - **Informational only:** no `review.collect` call, no verdict, no `capture-feedback` line;
-      silence has no meaning here. It stays prose because a card would invite an accept that
+      silence has no meaning here. It stays prose because a card would invite an execute that
       re-drafts what the spent turn already produced.
 - **Derive the CRM evaluation — first, before anything that reads it.** Invoke `work-account`
   **Step 6.5 CRM UPDATE** by name, evaluate-only, over this run's `evidence[]`, the item's current
@@ -90,7 +93,7 @@ do **not** re-review tasks here — and any artifact verdict already happened du
     rules; this is never volunteered as a second structured ask.
 - **CRM Updates — final sub-beat.** After the outcome recap and the open-questions +
   qualification checkpoint complete, invoke `write-crm` with the in-memory `crm_update` object
-  `work-account` handed back (the same in-memory channel `next_step` rides) plus the selected
+  this beat derived above (the same in-memory channel `next_step` rides) plus the selected
   item's `(namespace, slug)`. `write-crm` owns the
   sub-beat's persist and render: on its simulate path it persists
   `drafts/YYYY-MM-DD-crm-update.md` and renders via `render.crm_update`. Which path it takes is
@@ -113,6 +116,12 @@ do **not** re-review tasks here — and any artifact verdict already happened du
 - On request: route dropped-set inspect to `work-account` Step 12; promote to Step 13 (never
   volunteered — the orchestrator's invariant).
 - Confirm each captured verdict tersely.
+- **Loop back to the slate.** Once the cycle has closed, state in one line which account is done,
+  then invoke `build-slate`'s REDRAW entry by name and hand control back to Step 3, where a second
+  pick runs the full per-item path exactly as the first did. Nothing is re-discovered, no clock is
+  re-sampled and nothing is written — the closed account simply has no card left to draw. An empty
+  redrawn slate gets one honest line saying nothing is left, no widget and no placeholder card, and
+  the session goes to Step 6. So does a rep who declines to pick again: asked once, never twice.
 
 ## Writes
 

@@ -1,6 +1,6 @@
 {
   "name": "unbound",
-  "version": "2.1.0",
+  "version": "2.13.0",
   "description": "Your sales playbook, drafted after every call. You approve what happens next.",
   "skills": "./skills/",
   "apps": "./.app.json",

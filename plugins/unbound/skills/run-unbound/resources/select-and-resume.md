@@ -63,14 +63,17 @@ why the orchestrator's Writes section is unchanged by this step:
   **only** the record's `event_ids[]` and counts the remainder. The plan the rep is resuming is the
   plan they left, unchanged by anything that arrived since.
 - **(d) Jump — the record's `phase` picks the beat.** Three cases, and no others:
-  - `planned` → **Step 3.5**, the full batch over all retained tasks. Earlier partial verdicts stand
-    and re-verdicts append: the log is append-only and the latest line per `task_id` wins, so
-    re-triaging a card the rep already marked costs one repeated question, never a lost answer.
-  - `triaged` → **Step 4**, with the accepted set taken from the rehydrated verdicts.
+  - `planned` → **Step 3.5**, re-collecting **plan** verdicts over all retained tasks in one batch.
+    Earlier partial verdicts stand and re-verdicts append: the log is append-only and the latest
+    line per `task_id` wins, so re-triaging a card the rep already marked costs one repeated
+    question, never a lost answer.
+  - `triaged` → **Step 4**, with the walk set taken from the rehydrated **`accept`**-standing
+    verdicts. The task gate is per-task and lives inside that beat, so a resume never re-collects
+    it in bulk here — the walk reaches each task's own turn and asks there.
   - `executed` → **Step 5**, close-out only.
 
-  Whichever beat the jump names, enter it through its phase file — `skills/loop/triage-and-execute.md`
-  for Steps 3.5 and 4, `skills/loop/close-out.md` for Step 5 — read in full before the beat runs
+  Whichever beat the jump names, enter it through its phase file — `resources/triage-and-execute.md`
+  for Steps 3.5 and 4, `resources/close-out.md` for Step 5 — read in full before the beat runs
   (the orchestrator's phase-loading invariant).
 - **Say what was rehydrated and where the run is resuming from — one line, always.** A resume is
   never silent. It is never automatic either: the rep chose this card at selection, and nothing in
@@ -79,7 +82,7 @@ why the orchestrator's Writes section is unchanged by this step:
   own. At `planned`, silence means triage **never reached** that card, so the full re-triage the
   jump performs is the correct reading. At `triaged` or later, silence means the rep **deliberately
   passed over** it, and the standing per-task semantics hold exactly as written in
-  `skills/loop/triage-and-execute.md` — never handled, never re-asked, recapped in Step 5.
+  `resources/triage-and-execute.md` — never handled, never re-asked, recapped in Step 5.
 - **(e) Restart — on the rep's explicit ask only.** Never inferred from a (b) mismatch, which asks
   rather than acts. On that ask, re-run `work-account` in full for the item: its Step 9 RECORD WORK
   **rewrites** the existing record rather than adding a second one — that rule is authored there and

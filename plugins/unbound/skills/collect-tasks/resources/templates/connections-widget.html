@@ -20,15 +20,19 @@
   LAYOUT (fixed order): header row ("Connections" title + muted read-only
   subtitle) · capability rows (one row per capabilities[] entry, in
   tool-bindings.md table order: capability name + status pill + serving-tool line
-  when bound + muted consequence line on missing/degraded rows) · readiness
-  banner capping the board (READY TO RUN, or READY EXCEPT with one what/unlocks
-  line per exception).
+  when bound + muted consequence line on missing/degraded rows + the connect
+  block where the entry carries one — what connector to add, where to add it on
+  this runtime, and what it unlocks, rendered as guidance text and never as an
+  affordance) · readiness banner capping the board (READY TO RUN, or READY
+  EXCEPT with one what/unlocks line per exception).
 
   NO BUTTONS, NO INPUTS — this widget carries zero affordances and causes no
   write (ADR-4/ADR-9). It is RENDER-ONLY and conveys nothing back: no
   `review.collect` call, no verdict, no `capture-feedback` line — silence has no
-  meaning here. Binding-change verdicts flow through `review.collect` items of
-  kind `binding_change`, never through this surface. Fallback surface (the plain
+  meaning here. There are no binding verdicts to carry: connect-tools binds what
+  it can resolve without asking, so nothing routes back through this surface.
+  The connect block is guidance the rep reads and acts on in their own settings —
+  it is not a button and nothing waits on it. Fallback surface (the plain
   Markdown capability table + verdict line in chat) carries the same fields —
   ADR-1 field parity.
   ═══════════════════════════════════════════════════════════════════════════

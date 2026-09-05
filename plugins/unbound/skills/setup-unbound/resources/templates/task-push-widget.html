@@ -1,0 +1,140 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  task-push-widget.html — pinned layout contract for
+  `render.task_push(task_push_view)`.
+
+  Added by the task-push-render epic (2026-08-24, C2): the task-manager push
+  walk presents its whole candidate set once through this card before the
+  first per-payload ask, instead of printing each payload as raw chat text.
+  Rendered as ONE visualize widget fragment per walk: one top-level <div>,
+  first child h2.sr-only (widget-fragment constraints,
+  resources/tool-bindings.md "Visualize protocol"). Inline styles only;
+  Cowork CSS vars with hex fallbacks.
+
+  A read-only card view of the payloads PREPARE already built — nothing is
+  regenerated, re-evaluated, re-read or re-derived at render time.
+  `task_push_view` = { destination { container_id, container_name? },
+  payloads[]: { task_id, operation: create | update, title, body_lines[],
+  outbound_status, marker, unresolved_prior_attempt } }. `title` is the
+  OUTBOUND title under the declared naming convention; `body_lines[]` is the
+  outbound body verbatim in send order and RENDERS COMPLETE — never elided,
+  never summarised, never truncated; `outbound_status` is the image of the
+  local status under the map in force; `marker` is the recovery line and
+  renders last, as the last line of the body. `container_name` is narration
+  only — `container_id` is the only addressing value.
+
+  LAYOUT (fixed order): header row ("Tasks to push" + destination line +
+  amber "queued · nothing sent" pill) · one PAYLOAD BLOCK per payloads[]
+  entry, IN THE PLAN'S PRIORITY ORDER — the order the walk asks in, so
+  reading order and asking order are one order — each block being: operation
+  pill (create / update) + the outbound title as its heading · the
+  unresolved-prior-attempt row, distinctly marked, ONLY where that flag is
+  set · every body_lines[] entry rendered whole, one line per entry, in send
+  order · the "will land as <outbound_status>" line · the muted marker line,
+  LAST · footer "N tasks queued" count line — a count, never a percentage,
+  score, or health grade. An EMPTY candidate set renders NO WIDGET AT ALL
+  (the same rule render.slate carries for an empty slate) — never an empty
+  card, never a "0 tasks queued" line. Every interpolated string is
+  HTML-escaped.
+
+  NO BUTTONS, NO INPUTS — this widget carries zero affordances and causes no
+  write (ADR-4/ADR-9). It is INFORMATIONAL ONLY: no `review.collect` call, no
+  verdict, no `capture-feedback` line — silence has no meaning here. The rep
+  still TYPES the approval, per payload, at the walk's own conversational ask;
+  an approve button on a queued external write is precisely the affordance
+  ADR-4 and ADR-9 keep off this surface. The "queued · nothing sent" pill
+  states exactly that boundary. Fallback surface (the plain in-chat Markdown
+  section) carries the SAME PAYLOADS IN FULL — every body line and marker
+  included, one section per payload, in the same priority order — ADR-1 field
+  parity. The fallback is never a summary.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the count + the destination + the queued state
+     for screen readers, e.g. "4 tasks queued to push to the Loamworks board
+     — nothing sent yet" -->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="width:32px; height:32px; border-radius:999px; background:var(--c-blue-50,#E6F1FB); color:var(--c-blue-800,#0B3D66); display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="ti ti-checklist" style="font-size:16px;"></i></div>
+      <div>
+        <p style="font-size:14px; font-weight:600; margin:0;">Tasks to push</p>
+        <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">{{DESTINATION_LINE}}</p>
+        <!-- {{DESTINATION_LINE}} — the resolved destination, stated plainly:
+             the container_name where one is known, else the container_id
+             verbatim. container_name is narration; container_id is the only
+             addressing value and is what shows when it is all that is known. -->
+      </div>
+    </div>
+    <span style="background:var(--c-amber-50,#FAEEDA); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px; white-space:nowrap;">queued &middot; nothing sent</span>
+  </div>
+
+  <!--
+    PAYLOAD AREA — one block per payloads[] entry, in the plan's priority
+    order. No block is ever collapsed, folded, elided or summarised: this
+    card IS the approval surface the walk's APPROVE rule requires, so a body
+    line the rep cannot read here is a body line that was not shown. Bodies
+    wrap; they never scroll horizontally. Block shape:
+
+      <div style="border-top:0.5px solid var(--border); padding-top:10px; margin-bottom:10px;">
+        <div style="display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; margin:0 0 6px;">
+          {{OPERATION_PILL}}
+          <p style="font-size:14px; font-weight:500; margin:0;">{{OUTBOUND_TITLE}}</p>
+        </div>
+        {{UNRESOLVED_ROW}}
+        <div style="margin:0 0 6px;">
+          {{BODY_LINES}}
+        </div>
+        <p style="font-size:12px; color:var(--text-muted); margin:0 0 2px;">{{STATUS_LINE}}</p>
+        <p style="font-size:11px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--text-muted); margin:0; word-break:break-all;">{{MARKER}}</p>
+      </div>
+
+    {{OPERATION_PILL}} — exactly one, keyed to payloads[].operation:
+      create: <span style="background:var(--c-teal-50,#E1F5EE); color:var(--c-teal-800,#0A5C43); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">create</span>
+      update: <span style="background:var(--c-gray-50,#F1EFE8); color:var(--c-gray-800,#3F3D38); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">update</span>
+
+    {{OUTBOUND_TITLE}} — payloads[].title, the outbound title under the
+    declared naming convention with its placeholders already resolved. Not
+    the local task title where a convention applies, because this card must
+    show what lands.
+
+    {{BODY_LINES}} — EVERY body_lines[] entry, one <p> per entry, in send
+    order, rendered whole:
+      <p style="font-size:13px; margin:0 0 4px; white-space:pre-wrap; overflow-wrap:anywhere;">{{BODY_LINE}}</p>
+    The typed context block's own indentation is preserved by pre-wrap. No
+    entry is dropped, merged, re-ordered, or replaced by an ellipsis.
+
+    {{STATUS_LINE}} — "will land as {{OUTBOUND_STATUS}}" where the local
+    status has an image under the map in force; where it has none, the
+    honest line instead, verbatim and never a guessed status:
+      <p style="font-size:12px; color:var(--text-muted); margin:0 0 2px;">no image in the map &mdash; status not sent</p>
+
+    {{MARKER}} — payloads[].marker, the recovery line
+    [unbound:<namespace>/<slug>#<plan_date>:<task_id>], rendered LAST
+    because it is the last line of the outbound body.
+
+    {{UNRESOLVED_ROW}} — ONLY where payloads[].unresolved_prior_attempt is
+    set; omitted entirely otherwise (never an empty row, never a "resolved"
+    row). It carries the same honest sentence the walk states before asking:
+      <div style="display:flex; gap:8px; align-items:flex-start; margin:0 0 6px; background:var(--c-amber-50,#FAEEDA); border-radius:8px; padding:6px 8px;">
+        <span style="background:var(--c-amber-100,#F5DFB8); color:var(--c-amber-800,#633806); font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; white-space:nowrap; flex-shrink:0;">earlier attempt unresolved</span>
+        <p style="font-size:12px; color:var(--c-amber-800,#633806); margin:0;">{{UNRESOLVED_SENTENCE}}</p>
+      </div>
+    {{UNRESOLVED_SENTENCE}} states what is actually there where the status
+    read is bound, and that the state could not be read where it is not —
+    the beat's own sentences, carried onto the card, never re-worded into a
+    reassurance.
+  -->
+  {{PAYLOAD_BLOCKS}}
+
+  <div style="border-top:0.5px solid var(--border); padding-top:10px;">
+    <p style="font-size:12px; color:var(--text-muted); margin:0;">{{N}} tasks queued</p>
+    <!-- {{N}} = the payloads[] entry count — a count, never a percentage,
+         score, or health grade. Singular reads "1 task queued". This block
+         never renders alone: an empty candidate set renders no widget. -->
+  </div>
+
+</div>
+</div>

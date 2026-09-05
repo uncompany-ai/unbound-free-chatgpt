@@ -1,6 +1,6 @@
 ---
 name: write-crm
-description: Close-out skill that owns the CRM write/simulate boundary. Invoked by run-unbound at the Step 5 CRM close-out sub-beat (composition slot 8) with the in-memory crm_update object work-account handed back. RESOLVE separates live tool presence from production eligibility (replay-proven or recovery-verified); every unbound, unconfirmed, legacy, or path-unqualified mapping takes the unchanged simulate branch, persisting drafts/YYYY-MM-DD-crm-update.md and rendering "(simulated)". Where a mapping does qualify, an approved update lands at most once — by provider replay or by ledger-plus-read-back recovery — and an interrupted close-out resumes without a second push. NOT part of the run loop's task dispatch and NOT a task-registry handler (external write lives outside the Handler Contract).
+description: Close-out skill that owns the CRM write/simulate boundary. Invoked by run-unbound at the Step 5 CRM close-out sub-beat (composition slot 8) with the in-memory crm_update object the close-out beat derived — its own invocation of work-account Step 6.5, after plan triage. RESOLVE asks one question — is the declared CRM write bound and present this session; every unbound or unconfirmable mapping takes the unchanged simulate branch, persisting drafts/YYYY-MM-DD-crm-update.md and rendering "(simulated)". Where it is bound, the rep approves the exact payload and the update lands, its landing recorded on the item's dated draft so a resumed close-out never sends twice. NOT part of the run loop's task dispatch and NOT a task-registry handler (external write lives outside the Handler Contract).
 tier: all
 ---
 # write-crm
@@ -8,17 +8,18 @@ tier: all
 Close-out apply step of an Unbound run (composition slot 8) that owns the **APPLY** half of the CRM
 update — the write-vs-simulate boundary concern. `work-account` Step 6.5 computes *what* the CRM
 should hold (the grounded `crm_update` object); `write-crm` decides *how* it lands. Invoked by
-`run-unbound` at the Step 5 CRM close-out sub-beat (after the email-draft verdict beat), taking the
-in-memory `crm_update` object `work-account` handed back.
+`run-unbound` at the Step 5 CRM close-out sub-beat (after the outcome recap and checkpoint), taking
+the in-memory `crm_update` object the close-out beat derived — its own invocation of Step 6.5,
+after plan triage.
 Names only logical capabilities (ADR-6); it is not a task-registry handler — the external write
 lives outside the Handler Contract (a numbered composition-seam slot is not the same as a registry handler).
 
 ## Reads
 
-- In-memory `crm_update` object (handed back by `work-account` Step 6.5, forwarded by `run-unbound` Step 5) — `current_stage`, `stage_recommendation { recommendation, to_stage, criteria[], unmet[], reason }`, the verbatim-carried `next_step`, `product_gaps[]`, and the optional `qualification { framework, fields[]: { field, status: captured|missing, evidence?, updated }, gaps[]: { field, coach } }` block when Step 6.5 emitted one. Nothing is re-evaluated here.
+- In-memory `crm_update` object (derived at close-out via `work-account` Step 6.5 — after plan triage — and forwarded by `run-unbound` Step 5) — `current_stage`, `stage_recommendation { recommendation, to_stage, criteria[], unmet[], reason }`, the verbatim-carried `next_step`, `product_gaps[]`, and the optional `qualification { framework, fields[]: { field, status: captured|missing, evidence?, updated }, gaps[]: { field, coach } }` block and the optional `summary` when Step 6.5 emitted them. Nothing is re-evaluated here.
 - The selected item's `(namespace, slug)` and its `accounts|projects/<slug>/drafts/` path — the persist target on the simulate branch.
 - The run's `timezone`, for the filename date — reused in-session from the orchestrator's Step 1 read (the read-once rule, `work-account` Step 1); `state/run-state.yaml` is never opened here for it, and is never written here.
-- Logical capability `render.crm_update(crm_view)` — the informational close-out card / Markdown section; never a concrete tool name.
+- Logical capability `render.crm_update(crm_view)` — the informational close-out card / Markdown section. The beat passes the state it is in: `simulated` on the simulate branch and on a decline, `pending` at the approval ask, `synced` only from a sync record already written. Never a concrete tool name.
 
 ## Procedure
 
@@ -30,7 +31,7 @@ and render it informationally. Persist mechanics moved unchanged from `work-acco
   - The `.md` extension — `.yaml` is reserved for the tasks draft.
   - A same-date re-run overwrites the same-date file — latest synthesis wins, the same authority rule as the tasks draft.
 - YAML frontmatter `{ namespace, slug, date, current_stage, recommendation }`, plus `to_stage` only when advancing.
-- Markdown body: the three standing sections shaped as the field-level update a CRM would receive, headed by the "(simulated)" marker and an explicit nothing-was-sent-externally note. Unmet criteria render as "no evidence this run" — informational checkboxes, never `render.tasks`; the criteria block is omitted entirely on a `not-applicable` recommendation.
+- Markdown body: the three standing sections shaped as the field-level update a CRM would receive, headed by the "(simulated)" marker and an explicit nothing-was-sent-externally note. Unmet criteria render as "no evidence this run" — informational checkboxes, never `render.tasks`; the criteria block is omitted entirely on a `not-applicable` recommendation. A closing `## Summary` section carries the narrative verbatim, omitted entirely when the object holds none.
 - `## Qualification (<framework>)` — conditional section, present only when the handed-back `crm_update` carries a `qualification` block; placed after `## Stage` (before `## Next Step`). A read-only projection of that block — nothing is re-evaluated, and `company/process.md` is never re-read at render time. First line: `N of M captured`, where `M` is the declared field count (every `fields[]` entry) and `N` the `captured` count — a count, never a percentage, score, or health grade. Then one line per field, in declaration order: a captured field renders `- [x] <field> — <citation>`; a missing field renders `- [ ] Missing: <field> — <coach hint>`, the hint taken verbatim from `gaps[].coach` (already copied byte-for-byte from `company/process.md`'s `Coach:` value by `work-account` Step 6.5) — never generated, never re-worded. When `crm_update` carries no `qualification` key (project, terminal stage, absent or malformed declaration — all decided upstream in Step 6.5, never re-decided here), the section is omitted entirely — never an empty heading, never a `0 of 0` line — the same omit-entirely rule as the criteria block on `not-applicable`.
 
 ```markdown

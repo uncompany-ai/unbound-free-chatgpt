@@ -24,7 +24,7 @@ its own repository, because a marketplace is discovered at a repository root.
 
 ## Provenance
 
-The published tree is the gate-verified build artifact of core `v2.1.0`.
+The published tree is the gate-verified build artifact of core `v2.13.0`.
 
 ## Maintenance
 

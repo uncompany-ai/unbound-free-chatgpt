@@ -1,0 +1,100 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  ask-form-widget.html — pinned layout contract for `input.collect(ask_view)`.
+
+  ONE fragment per ask, one row per field, ONE submit returning every answer in
+  a single turn. This is the surface for a fact the product needs and cannot
+  derive — who is on the call, which companies may see the room, how a tool
+  connects. It is NOT a verdict surface: judging something the product already
+  built is `review.collect`'s, and the two are never substituted for each other.
+
+  NOT RESTATED HERE — fragment constraints, this surface's rules, and the
+  capability contract the footer handler implements: runtime/tool-bindings.md
+  ("## input.collect") and resources/tool-bindings.md ("Visualize protocol",
+  "sendPrompt grammar"). One top-level <div>, first child h2.sr-only. Inline
+  styles only; Cowork CSS vars with hex fallbacks; no external asset.
+
+  THE DEFAULT IS THE POINT. Every field renders its `default` as the live state
+  of its own control — text prefilled, the chosen radio `checked`, each chosen
+  checkbox `checked`, the list textarea seeded one item per line. So an ask the
+  system can already answer arrives complete and the rep confirms it by pressing
+  Submit once, touching nothing. A field whose `default` was derived rather than
+  given renders its `basis` as the muted line beneath it, so a pre-filled answer
+  is never an unexplained one. A field with no `default` renders empty.
+
+  FIELD ROW (fixed order): label · control · muted basis line (when present).
+  Render the control for the field's `kind` and no other:
+    choice       → radio group, name="f-{{FIELD_ID}}", one radio per option
+    multi_choice → checkbox group, one checkbox per option
+    text         → single-line input
+    list         → textarea, ONE ITEM PER LINE (blank lines are dropped)
+  `options[]` exists on choice / multi_choice only; a text or list field
+  carrying one is a caller bug, never rendered as a control it did not ask for.
+
+  PLACEHOLDERS — {{ASK_ID}} the ask's own id, carried into the submitted string
+  so the answers are self-describing; {{FIELD_ID}} the field id, AUTHORITATIVE
+  (it is the key each answer comes back under); {{FIELD_IDS_JSON}} the ordered
+  id array fixing submission order; {{TITLE}} / {{CONTEXT_LINE}} the ask's
+  header pair. Every visible string is HTML-escaped.
+
+  sendPrompt GRAMMAR (one submit, every answer):
+      sendPrompt('Answers for {{ASK_ID}} — <id>: <value>; <id>: <value>')
+    Values are joined with ', ' inside a field (multi_choice members, list
+    items) and fields with '; ' between them, in {{FIELD_IDS_JSON}} order. A
+    field left empty AND carrying no default contributes NOTHING — no key, no
+    placeholder — so an unanswered field is visibly unanswered rather than
+    silently blank. Submitting with every field empty sends nothing at all.
+    The string is SELF-DESCRIBING: a click sends plain text with no widget
+    identity attached, and hand-typing the same text is equivalent. A click
+    writes nothing (ADR-9) — the sent prompt IS the return-to-agent turn.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div>
+<h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
+<!-- {{SR_DESCRIPTION}} names the ask + the fields it collects, e.g. "Form
+     asking who is on the Loamworks call and when, with attendees, meeting
+     time, and agenda fields, and one submit" — keep the field list in step
+     with the rows below, which are the only place it can go stale unnoticed. -->
+<div style="background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:1.25rem;">
+
+  <p style="font-weight:500; font-size:16px; margin:0 0 4px;">{{TITLE}}</p>
+  <p style="font-size:13px; color:var(--text-secondary); margin:0 0 14px;">{{CONTEXT_LINE}}</p>
+
+<!-- FIELD ROW — repeat per field, in fields[] order. data-kind selects the
+     collector branch below; render exactly one control block per row. -->
+<div id="f-{{FIELD_ID}}" data-kind="{{FIELD_KIND}}" style="border-top:0.5px solid var(--border); padding-top:10px; margin-bottom:10px;">
+  <p style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 6px;">{{FIELD_LABEL}}</p>
+
+  <!-- kind: choice — one radio per option; the default option carries checked. -->
+  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+    <label style="font-size:13px; display:flex; align-items:center; gap:5px;"><input type="radio" name="f-{{FIELD_ID}}" value="{{OPTION}}" checked>{{OPTION}}</label>
+  </div>
+
+  <!-- kind: multi_choice — one checkbox per option; each default member carries checked.
+  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+    <label style="font-size:13px; display:flex; align-items:center; gap:5px;"><input type="checkbox" value="{{OPTION}}" checked>{{OPTION}}</label>
+  </div>
+  -->
+
+  <!-- kind: text — value IS the default; empty attribute when there is none.
+  <input type="text" value="{{DEFAULT}}" placeholder="{{FIELD_PLACEHOLDER}}" style="width:100%; box-sizing:border-box;">
+  -->
+
+  <!-- kind: list — one item per line, seeded with the default items.
+  <textarea rows="3" placeholder="{{FIELD_PLACEHOLDER}}" style="width:100%; box-sizing:border-box;">{{DEFAULT_LINES}}</textarea>
+  -->
+
+  <p style="font-size:12px; color:var(--text-muted); margin:6px 0 0;">{{FIELD_BASIS}}</p>
+  <!-- {{FIELD_BASIS}} renders ONLY when the field carries a basis (a derived
+       default saying where it came from, e.g. "from the sender's email
+       domain"). Omit this whole line otherwise — never an empty muted row. -->
+</div>
+<!-- / END FIELD ROW -->
+
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; border-top:0.5px solid var(--border); padding-top:12px;">
+    <p style="font-size:12px; color:var(--text-muted); margin:0;">Pre-filled answers are proposals &mdash; submit to confirm them, or change them first.</p>
+    <button onclick="var ids={{FIELD_IDS_JSON}};var p=[];for(var i=0;i&lt;ids.length;i++){var f=ids[i],b=document.getElementById('f-'+f),k=b.getAttribute('data-kind'),v='',n,j,s=[];if(k==='choice'||k==='multi_choice'){n=b.getElementsByTagName('input');for(j=0;j&lt;n.length;j++){if(n[j].checked)s.push(n[j].value);}v=s.join(', ');}else if(k==='list'){n=b.getElementsByTagName('textarea')[0].value.split('\n');for(j=0;j&lt;n.length;j++){var w=n[j].replace(/^\s+|\s+$/g,'');if(w)s.push(w);}v=s.join(', ');}else{v=b.getElementsByTagName('input')[0].value;}v=v.replace(/^\s+|\s+$/g,'');if(v)p.push(f+': '+v);}if(p.length){sendPrompt('Answers for {{ASK_ID}} — '+p.join('; '));}" style="border-color:var(--border-accent, var(--border-strong));">Submit answers</button>
+  </div>
+
+</div>
+</div>

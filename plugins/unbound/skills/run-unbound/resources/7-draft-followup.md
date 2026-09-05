@@ -1,6 +1,6 @@
 ---
 name: draft-followup
-description: The followup_email task-type handler — the only task type run-unbound's loop executes. Invoked when the loop reaches a followup_email task the rep accepted in the plan-triage submission and that carries proposed_action draft_email. Drafts the single follow-up email for the selected account or project in rep/voice.md voice, covering — where evidence grounds each — the outstanding questions, the best-fit existing asset (or planned content), and the next step. When the next step is a meeting, it confirms attendees, their emails, and candidate times with the rep before drafting. Writes a local draft only; nothing is ever sent or queued. One email per item per run.
+description: The followup_email task-type handler — the only task type run-unbound's loop executes. Invoked when the loop reaches a followup_email task the rep verdicted execute in the plan-triage submission and that carries proposed_action draft_email. Drafts the single follow-up email for the selected account or project in rep/voice.md voice, covering — where evidence grounds each — the outstanding questions, the best-fit existing asset (or planned content), and the next step. When the next step is a meeting, it confirms attendees, their emails, and candidate times with the rep before drafting. Writes a local draft only; nothing is ever sent or queued. One email per item per run.
 tier: all
 ---
 # draft-followup
@@ -25,7 +25,7 @@ Invariants).
   - `rep/voice.md`, `company/messaging.md`, `company/assets.md`, and `company/process.md` are **reused from this session's one REFERENCE load** — immutable in-run per the read-once rule (`work-account` Step 1); this handler re-opens none of them.
 - `accounts|projects/<slug>/context.md` — `stakeholders` (greeting + required attendees), `stage`, accumulated reality.
 - `state/run-state.yaml` — the item's row, only. The run's `timezone` is reused in-session per the same read-once rule, never re-opened from this file.
-- `state/feedback-log.jsonl` — this item's (and the rep's recent) `edit` / `reject` entries with their notes, read at DRAFT as style steering only; an absent file means no steering.
+- `state/feedback-log.jsonl` — this item's (and the rep's recent) `edit` / `reject` / `cancel` entries with their notes, read at DRAFT as style steering only; an absent file means no steering.
 - logical Drive read capabilities `content.search(query) -> [ref]` and `content.get(ref) -> content` — read-scope, bounded (one search + ~one get), to verify existence not to ingest.
 - logical Calendar read capability `calendar.availability(attendees, window) -> [open_slot]` — read-scope, bounded (one query), only on the meeting path; slots are held for SCHEDULING-CONFIRM, never written into a draft before approval.
 
@@ -33,7 +33,7 @@ Invariants).
 
 **1 — GATE.** Runs first; no draft is composed before it proceeds.
 
-- Precondition: the rep accepted this task (or accepted it after an edit) in `run-unbound`'s plan-triage submission. The loop never invokes this skill on a reject or no verdict, and this skill never drafts without that accept.
+- Precondition: the rep verdicted this task `execute` (or did so after an edit) in `run-unbound`'s plan-triage submission. The loop never invokes this skill on a `defer`, a `cancel` or no verdict, and this skill never drafts without that `execute`.
 - Verify the handed `source_task` is `type: followup_email` carrying `proposed_action: draft_email` — the trigger contract.
 - If invoked without a handed task, scan `tasks[]` and hold the highest-priority such task as `source_task`.
 - If the contract does not hold (wrong type, or `proposed_action: none`), no-op: write no draft, leave `drafts/` untouched, say briefly in chat that no follow-up email was warranted, hand back.
@@ -46,14 +46,14 @@ Invariants).
 - Verify it in Drive: `content.search(query)` scoped by the asset's identity + stage/pain terms, then `content.get(ref)` to confirm the `ref` resolves (bounded: one search + typically one get; never crawl).
 - The outcome is exactly one of:
   - **verified asset** — hold the one `Link` + a one-line rationale tied to stage + pain for DRAFT to embed; `asset_referenced` will carry the chosen asset;
-  - **planned content** — no asset fits or verifies, but the plan carries a `create_deck` / `create_one_pager` task: hold it so DRAFT names the forthcoming content tentatively (what it is and what it addresses); `asset_referenced: none`;
+  - **planned content** — no asset fits or verifies, but the plan carries a `create_deck` / `create_one_pager` task: hold it for DRAFT. Name the forthcoming content by what it is and what it addresses, in the future tense. Write no URL, filename or link for it — it does not exist yet. Never imply it is ready or attached. `asset_referenced: none`;
   - **none** — no asset and no planned content task: no content component; `asset_referenced: none`; PROPOSE-CONTENT decides whether a genuine gap exists.
 - Narrate the outcome (which asset and why / planned content named / none fit).
 
 **3 — AVAILABILITY.** Runs only when `next_step` is `{ proposed: true }` and the step is (or includes)
 a meeting; otherwise skip silently. This is the next-call substep — a required next call is never a
 discrete task; it is handled here, inside the follow-up email. Resolve candidate attendees and
-times and hold them for SCHEDULING-CONFIRM's one presentation; write nothing yet.
+times and hold them for SCHEDULING-CONFIRM's one ask; write nothing yet.
 
 - **Determine the required attendees, split by side.** Vendor/internal: the rep plus the internal colleagues the evidence / `next_step` / `source_task.context.next_call.required_attendees[]` name (e.g. an SE or a manager). Counterparty: the stakeholder(s) from `context.md` `stakeholders`.
 - **Resolve each internal attendee's email** from the originating event/thread participants in `selected_item` evidence, the `source_task`, or `context.md`. A non-derivable address is held as `[email unknown]`. Never guess an attendee or silently omit one.
@@ -61,23 +61,26 @@ times and hold them for SCHEDULING-CONFIRM's one presentation; write nothing yet
 - **Degrade honestly.** An unreadable attendee calendar (an `[email unknown]` candidate is one) → fall back to the readable attendees' (at minimum the rep's) open slots, phrased as offers to confirm. Capability unavailable or no open slots → carry the meeting ask without concrete times (still confirm attendees at the gate).
 
 **4 — SCHEDULING-CONFIRM.** Runs only when AVAILABILITY ran; skipped silently otherwise. A hard
-gate: no draft file is written until the rep approves here. This is scheduling logistics — who and
-when — distinct from the task approval `run-unbound`'s plan triage already owns.
+gate: no draft file is written until this ask is answered. This is scheduling logistics — who and
+when — distinct from the task approval `run-unbound`'s plan triage already owns. It settles facts,
+so it is asked on `input.collect`, never typed into chat (`task-registry.md` Part B, Input
+collection); that capability owns how defaults, `basis` and submit behave, and this beat names only
+the fields.
 
-- Present in chat, as one ask: the candidate vendor/internal attendees with emails — asking the rep to confirm membership where ambiguous and supply any `[email unknown]` — and the 2–3 candidate slots (or, on a degraded read, the meeting ask without times).
-- Wait for a real reaction, then normalize it to `approve | edit | reject` (as DRAFT VERDICT CAPTURE normalizes):
-  - `edit` → apply the change to attendees and/or slots (re-run `calendar.availability` if the set changed) and re-present this gate;
-  - `reject` → write no draft; loop or close per the rep;
-  - `approve` → carry the confirmed attendees + emails + approved slot(s) to DRAFT. Only then does DRAFT run.
+- One `ask_view`, one call. Its `context_line` states the internal roster in words — **including when it is the rep alone**, which is said out loud and never left as a silence.
+- `fields[]` in order: `attendees` (`multi_choice`, every candidate AVAILABILITY resolved pre-selected, `basis` naming the evidence each came from) — **always present and always editable, never shown only where the set was ambiguous**; `add_attendees` (`list`, no `default`, one `name <email>` per entry) for colleagues the evidence never named, likewise always present, because the moment the rep most needs to add someone is exactly the run where nobody was mentioned; one `text` field per `[email unknown]` candidate, labelled with that person's name and carrying no `default`; `slots` (`multi_choice`, the 2–3 candidate slots all pre-selected, `basis` naming the availability read — omitted on a degraded read, where the ask carries no times); `meeting_ask` (`choice` — carry the meeting ask or drop it, defaulting to carry).
+- **Submit is the approval**, and replaces the chat verdict this gate used to normalize: the returned attendees, addresses and slot(s) are the confirmed set. Only then does DRAFT run.
+- A returned attendee set differing from the one AVAILABILITY priced → re-run `calendar.availability` for it and re-ask this gate once with fresh slots.
+- `meeting_ask` returned as drop → DRAFT runs with no meeting ask and `cc: []`. No answers at all → write no draft; loop or close per the rep.
 
 **5 — DRAFT.** Compose the one follow-up email in `rep/voice.md` voice and `company/messaging.md`'s default shape.
 
-- Before composing, read this item's recent `edit` / `reject` notes from `state/feedback-log.jsonl` and apply their recurring patterns (e.g. the rep keeps shortening drafts, keeps cutting the recap) — style steering only, never grounding for a factual claim.
+- Before composing, read this item's recent `edit` / `reject` / `cancel` notes from `state/feedback-log.jsonl` and apply their recurring patterns (e.g. the rep keeps shortening drafts, keeps cutting the recap) — style steering only, never grounding for a factual claim.
 - Derive the greeting from `context.md` `stakeholders`; address a real stakeholder. If `stakeholders` is empty, use a neutral placeholder like `Hi [name — no stakeholder on file]` and flag it in chat.
 - Include each of the three components **only where evidence grounds it** (omit, never pad, a component with nothing grounded):
   - **opener + recap** — a warm one-line opener referencing the actual call/email, with a 2–4 bullet recap grounded in the `source_task` evidence (plus the other `followup_email` tasks' evidence and `context.md`). Keep an `inferred:`-grounded point tentative.
   - **questions** — from the plan's `answer_questions` task / `open_questions[]`: acknowledge each and commit to how and when it will be answered. Relay an answer inline only when `context.md` or company material already contains it (cited).
-  - **content** — the MATCH-ASSET outcome: embed the one verified asset `Link` with its rationale, or name the planned content tentatively, or omit the component.
+  - **content** — the MATCH-ASSET outcome, carried on MATCH-ASSET's terms: the verified asset `Link` with its rationale, the planned content, or omitted.
   - **next step** — one clear ask from `next_step`. On a meeting, offer only the SCHEDULING-CONFIRM-approved slots (phrased per Step 3's degradations when times were unavailable) and CC the confirmed internal attendees on the `cc:` frontmatter line, naming them in the body where the voice suits it. On `{ proposed: false, reason }`, do not manufacture an ask — close warmly and note in chat that no next step was proposed.
   - a plain sign-off.
 - Craft the prose to land, not just to be accurate:
@@ -110,7 +113,7 @@ Hi <stakeholder from context.md>,
 
 <questions: acknowledgements + commitments; an answer only where existing material already provides it>
 
-<content: the one verified asset link + rationale, OR the planned new content named tentatively, OR omitted>
+<content: the one verified asset link + rationale, OR the planned content per MATCH-ASSET, OR omitted>
 
 <one clear next step — when it is a meeting, only the SCHEDULING-CONFIRM-approved slots for the
 confirmed attendees (who are also on the cc: line)>
@@ -167,6 +170,7 @@ draft via `apply-draft-edit(namespace, slug, source_task, note)`, in this exact 
 ## Invariants
 
 - **Never fabricate.** No invented link, address, attendee, slot, date, commitment, metric, stakeholder, or answer. Where grounding is only `inferred:`, mark it and keep the claim tentative.
+- **Forthcoming content carries no address.** Planned content is named by what it is and what it addresses, never by a URL, filename or link — it does not exist yet, and a working-looking address is a fabricated one.
 - **Local only.** The draft is a file; nothing is ever sent or queued; Drive and Calendar are read-only; the PROPOSE-CONTENT task never touches disk.
 - **One email per item per run.** Additional `followup_email` tasks fold into the same draft, never a second file. Idempotent-by-date; no empty draft is ever written.
 - **Read-only grounding.** Never re-rank, re-annotate, or re-decide the `work-account` output.

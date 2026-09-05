@@ -7,9 +7,9 @@
     {
       "name": "unbound",
       "displayName": "Unbound",
-      "version": "2.1.0",
+      "version": "2.13.0",
       "publisher": "Uncompany",
-      "description": "Your sales playbook, drafted after every call. You approve what happens next. Built from core v2.1.0.",
+      "description": "Your sales playbook, drafted after every call. You approve what happens next. Built from core v2.13.0.",
       "source": {
         "source": "local",
         "path": "./plugins/unbound"

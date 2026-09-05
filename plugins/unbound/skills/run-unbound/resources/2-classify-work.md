@@ -9,16 +9,16 @@ Classification step of an Unbound run (composition slot 2). Given the source-dis
 `discovered_events` working set from `discover-events`, route each event to
 `accounts` (opportunity) or `projects` (non-opportunity), assign a deterministic kebab-case slug
 (reusing existing slugs on re-encounter; honoring `suggested_slug` from `discover-events` as a
-confident slug-reuse hint when present) against the `prepare` snapshot's `known_anchors`, resolve a
+confident slug-reuse hint when present) against the `prepare` result's `known_anchors`, resolve a
 required `display_name`, and return the augmented set. Routing happens on event metadata: no
-evidence has been retrieved at this point in the run. This skill only classifies, assigns a slug and
+evidence is retrieved before selection. This skill only classifies, assigns a slug and
 resolves a display name — it does not discover events, fetch evidence, create context.md, upsert
 the queue, or advance `last_run`.
 
 ## Reads
 
-- In-memory `discovered_events` from `discover-events` — source-discriminated working set. Each item carries `{ event_id, source: "call"|"email", external_ref, occurred_at, title, participants, ambiguous, suggested_slug?, call_type? (call-only), latest_message_body? (email-only) }`. Accept as-is; do not reshape or re-fetch; carry `event_id` and `external_ref` verbatim.
-- The `prepare` snapshot from run-unbound's final pre-query beat — `known_anchors` (the stability check below) and `context` (the known-name lookup for `display_name`) — required, passed by the orchestrator; do not re-derive either by listing `accounts/`/`projects/` or re-reading `state/run-state.yaml` directly. `known_anchors` is already the union both a directory and a durable-but-unselected event pair would otherwise require checking separately — that union is exactly what keeps a discovered-but-never-selected item's slug stable, since `bootstrap-context` (which creates the directory) runs only on the selected item.
+- In-memory `discovered_events` from `discover-events` — source-discriminated working set. Each item carries `{ event_id, source: "call"|"email", external_ref, occurred_at, title, participants, ambiguous, suggested_slug?, call_type? (call-only), origin? }`. Accept as-is; do not reshape or re-fetch; carry `event_id` and `external_ref` verbatim.
+- The `prepare` result from run-unbound's final pre-query beat — `known_anchors` (the stability check below) and `context` (the known-name lookup for `display_name`) — required, passed by the orchestrator; do not re-derive either by listing `accounts/`/`projects/` or re-reading `state/run-state.yaml` directly. `known_anchors` is already the union both a directory and a durable-but-unselected event pair would otherwise require checking separately — that union is exactly what keeps a discovered-but-never-selected item's slug stable, since `bootstrap-context` (which creates the directory) runs only on the selected item.
 
 ## Procedure
 
@@ -34,17 +34,20 @@ return an empty set cleanly.
 - `projects` — non-opportunity work: internal initiative, cross-account program, operational effort.
 
 Base the decision on available signal: title + participants + source-specific signal (`call_type`
-for calls, sender domain + subject line for emails) + pasted info, plus — for emails only —
-`latest_message_body`, which `discover-events` already carries inline at no fetch cost. **Calls
+for calls, sender domain + subject line for emails) + pasted info, plus — for emails only — the
+message body, which is already in this run's context: it came back with the thread listing
+`discover-events` made. Read it from those results, at no fetch cost. **Calls
 route on metadata**: no transcript exists at this point in the run, because evidence recovery
 happens after selection. A call with metadata alone is still classifiable from remaining signal —
 that has always been true of a call whose transcript could not be found, and it is now simply the
 ordinary case rather than the exception. Never fabricate call content to fill the gap; where the
 remaining signal genuinely does not settle `accounts` vs `projects`, Step 4's rep ask is the
-answer. The `source` field is **additional signal** for namespace
+answer. An event carrying **no participant emails** routes on its title and this run's context
+alone — the same reduced signal, not a weaker bar — and where that is inconclusive it takes that
+same Step 4 ask. The `source` field is **additional signal** for namespace
 choice (e.g., an inbound business email from a prospect domain weakly suggests `accounts`); it is
-**not** a bias toward `accounts` over `projects` or vice versa — an internal-coordination email
-between teammates classifies to `projects` exactly as an internal coordination call would.
+**not** a bias toward either namespace — an internal-coordination email between teammates
+classifies to `projects` exactly as an internal coordination call would.
 
 **3 — Derive a deterministic, stable kebab-case slug and `display_name`.** Neither is ever blank.
 
@@ -63,11 +66,10 @@ between teammates classifies to `projects` exactly as an internal coordination c
 4. Mint only when genuinely new (no `known_anchors` member matched): lowercase → strip legal
    suffixes (inc, llc, ltd, corp, etc.) → remove punctuation → collapse whitespace to hyphens → trim
    leading/trailing hyphens.
-5. **`display_name`**: the slug's current `name` from the `prepare` snapshot's `context` when
+5. **`display_name`**: the slug's current `name` from the `prepare` result's `context` when
    known — an established account or project keeps its own name even when this one event's signal
    reads slightly differently — otherwise sub-step 1's resolved working name. Never persisted: it
-   lives only in memory for this run, and `build-slate`'s `materialize --apply` call is its one
-   consumer.
+   lives only in memory for this run, and `build-slate`'s `materialize` call is its one consumer.
 
 The slug is the coverage upsert key in `materialize` — an inconsistent slug for the same entity
 would fragment its context. `suggested_slug` is a **hint** only; this skill remains the
@@ -93,6 +95,7 @@ None. This skill performs no write of any kind. Re-running leaves the working tr
 - Insufficient account-vs-project signal → ask the rep; never default silently.
 - No call content (none is retrieved before selection) → classify from the remaining metadata signal; never fabricate call content; never drop the event.
 - No resolvable working name → surface to the rep; never invent a placeholder name, slug, or `display_name`.
+- No participant emails → route on title and context alone, then take Step 4's existing ask; never open a second ask path and never route on weaker signal to avoid asking.
 - Near-duplicate entity name → ask the rep rather than minting a second slug. Fragmentation is the dangerous failure.
 - Never anchor slug stability on a directory listing alone — `known_anchors` is already the union that keeps a discovered-but-never-selected item's slug stable; consult it whole, never a subset.
 - `suggested_slug` present but not a `known_anchors` member in the chosen namespace → discard the hint and proceed via the normal slug-derivation path; never auto-confirm an unverifiable hint.

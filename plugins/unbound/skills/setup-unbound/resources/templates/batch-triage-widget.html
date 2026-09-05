@@ -26,13 +26,20 @@
   its execution here is unobserved, where inline handlers are proven. On a
   verdict it records that verdict on window['__triage_{{ITEM_KEY}}'] (keyed by
   item slug, so two triage surfaces never share state), resets the sibling
-  buttons' styling, applies the verdict's color trio (green accept / gray edit
-  / red reject), sets "Selected: <Verdict>", and shows+focuses the -note input
-  for edit / hides it otherwise.
+  buttons' styling, applies the verdict's color trio (green accept / gray edit /
+  red reject), sets "Selected: <Verdict>", and
+  shows+focuses the -note input for edit / hides it otherwise.
+  EVERY CARD OFFERS THE SAME THREE, whatever its mode. This gate shapes the list
+  and decides no execution — the execution verdict is collected one card at a
+  time at the Step 4a per-task gate (checkpoint-widget.html).
 -->
 <div>
 <h2 class="sr-only">{{SR_DESCRIPTION}}</h2>
-<div style="display:flex;flex-direction:column;gap:10px;" onclick="var e=event.target,v;while(e&&e!==this){v=e.getAttribute&&e.getAttribute('data-verdict');if(v)break;e=e.parentNode;}if(!v)return;var C={accept:['green','#E3F3E5','#1E6B32','Accept'],edit:['gray','#F1EFE8','#444441','Edit'],reject:['red','#FBE7E6','#8A2A22','Reject']}[v];if(!C)return;var t=e.getAttribute('data-task'),g=e.parentNode.getElementsByTagName('button'),n=document.getElementById(t+'-note');(window['__triage_{{ITEM_KEY}}']=window['__triage_{{ITEM_KEY}}']||{})[t]=v;for(var i=0;i&lt;g.length;i++)g[i].removeAttribute('style');e.style.cssText='background:var(--c-'+C[0]+'-50,'+C[1]+');color:var(--c-'+C[0]+'-800,'+C[2]+');font-weight:600';document.getElementById(t+'-status').textContent='Selected: '+C[3];n.style.display=v==='edit'?'block':'none';if(v==='edit')n.focus();">
+<!-- {{SR_DESCRIPTION}} names the plan + affordances for screen readers, e.g.
+     "Plan triage for Calla and Vale, 4 tasks, each with accept, reject, and
+      edit actions, and one submit" — keep the affordance list in step with the
+      buttons below, which are the only place it can go stale unnoticed. -->
+<div style="display:flex;flex-direction:column;gap:10px;" onclick="var e=event.target,v;while(e&&e!==this){v=e.getAttribute&&e.getAttribute('data-verdict');if(v)break;e=e.parentNode;}if(!v)return;var C={accept:['green','#E3F3E5','#1E6B32','Accept'],reject:['red','#FBE7E6','#8A2A22','Reject'],edit:['gray','#F1EFE8','#444441','Edit']}[v];if(!C)return;var t=e.getAttribute('data-task'),g=e.parentNode.getElementsByTagName('button'),n=document.getElementById(t+'-note');(window['__triage_{{ITEM_KEY}}']=window['__triage_{{ITEM_KEY}}']||{})[t]=v;for(var i=0;i&lt;g.length;i++)g[i].removeAttribute('style');e.style.cssText='background:var(--c-'+C[0]+'-50,'+C[1]+');color:var(--c-'+C[0]+'-800,'+C[2]+');font-weight:600';document.getElementById(t+'-status').textContent='Selected: '+C[3];n.style.display=v==='edit'?'block':'none';if(v==='edit')n.focus();">
 
 <!-- CARD — repeat per retained task, in priority order. -->
 <div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;">
@@ -53,8 +60,8 @@
   <!-- CONTROLS — the handler's only targets; this parent is the reset scope. -->
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <button data-task="{{ID}}" data-verdict="accept">Accept</button>
-    <button data-task="{{ID}}" data-verdict="edit">Edit</button>
     <button data-task="{{ID}}" data-verdict="reject">Reject</button>
+    <button data-task="{{ID}}" data-verdict="edit">Edit</button>
   </div>
   <p id="{{ID}}-status" style="font-size:12px;color:var(--text-muted);margin:6px 0 0;min-height:15px;"></p>
   <input id="{{ID}}-note" type="text" placeholder="What should change about this task?" style="display:none;width:100%;margin-top:8px;box-sizing:border-box;">
