@@ -1,3 +1,6 @@
+> [!WARNING]
+> **Deprecated.** This version of Unbound is no longer maintained. This repository is archived and read-only.
+
 # Unbound — ChatGPT Work marketplace
 
 This repository is the public **ChatGPT Work** marketplace for [Unbound](https://uncompany.ai) —
